@@ -259,6 +259,8 @@ python notebook_editor.py create new_analysis.ipynb
 
 ## 🤖 Best Practice Workflow for AI Agents
 
+> **Note for Users:** There is a dedicated guide for AI agents located at [`README_AGENT.md`](README_AGENT.md). Please provide this file to your AI agent to help it understand how to use this tool effectively.
+
 When modifying notebook code, follow this **file exchange pattern**:
 
 ```bash
