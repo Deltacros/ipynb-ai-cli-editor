@@ -85,7 +85,16 @@ python notebook_editor.py add my_notebook.ipynb --type code --from-file new_scri
 python notebook_editor.py delete my_notebook.ipynb 5
 ```
 
-### 7. Create Notebook (`create`)
+### 7. Preview Changes (`diff`)
+
+Shows what will change before updating a cell.
+
+```bash
+python notebook_editor.py diff <notebook.ipynb> <cell_index> --from-file <file>
+python notebook_editor.py diff <notebook.ipynb> <cell_index> --content "<text>"
+```
+
+### 8. Create Notebook (`create`)
 
 Creates an empty valid .ipynb file.
 
