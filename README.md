@@ -112,6 +112,9 @@ python notebook_editor.py read <notebook.ipynb> <cell_index> [--to-file <output_
 # Print to console
 python notebook_editor.py read analysis.ipynb 5
 
+# Print with execution outputs (text and image placeholders)
+python notebook_editor.py read analysis.ipynb 5 --include-output
+
 # Save to file (RECOMMENDED for code editing)
 python notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
 ```
@@ -253,6 +256,28 @@ python notebook_editor.py create <notebook.ipynb>
 
 ```bash
 python notebook_editor.py create new_analysis.ipynb
+```
+
+---
+
+### 9. **save-output** - Extract Images/Binary Data
+
+Extracts binary data (like images) from a cell's output to a file.
+
+```bash
+python notebook_editor.py save-output <notebook.ipynb> <cell_index> --to-file <output_file> [--output-index N]
+```
+
+**Example:**
+
+```bash
+# Save the plot from cell 5 to an image file
+python notebook_editor.py save-output analysis.ipynb 5 --to-file plot.png
+```
+
+**Output:**
+```
+Saved image/png data from Cell 5, Output 0 to 'plot.png'.
 ```
 
 ---

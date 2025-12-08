@@ -21,6 +21,14 @@ To make changes to the code, always follow this algorithm:
 5. **Apply**: Update the cell from the file.
     `python notebook_editor.py update <notebook.ipynb> <cell_index> --from-file <temp_file.py>`
 
+### Inspecting Outputs
+
+*   **View Results**: To see what your code printed or returned:
+    `python notebook_editor.py read <notebook.ipynb> <cell_index> --include-output`
+
+*   **Extract Images**: If you see `[BINARY DATA DETECTED]` in the output, save it to inspect:
+    `python notebook_editor.py save-output <notebook.ipynb> <cell_index> --to-file image.png`
+
 ## Command Reference
 
 ### 1. View Structure (`list`)

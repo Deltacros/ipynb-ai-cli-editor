@@ -5,6 +5,7 @@ import sys
 import os
 import difflib
 import re
+import base64
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 
@@ -66,9 +67,6 @@ class NotebookEditor:
         if isinstance(source, str):
             # Split by lines and keep newlines
             lines = source.splitlines(keepends=True)
-            # If the last line doesn't have a newline, splitlines might not add it if it wasn't there.
-            # But standard behavior for list of strings in ipynb is usually to have \n at end of each line except maybe last.
-            # Let's just ensure it's a list.
             return lines
         return source
 
@@ -77,6 +75,46 @@ class NotebookEditor:
         if isinstance(source, list):
             return "".join(source)
         return source
+
+    def _get_cell_outputs(self, outputs: List[Dict[str, Any]]) -> str:
+        """Parses cell outputs into a human-readable string representation."""
+        result = []
+        for i, output in enumerate(outputs):
+            output_type = output.get('output_type', '')
+            result.append(f"--- Output {i} ({output_type}) ---")
+            
+            if output_type == 'stream':
+                text = self._source_to_string(output.get('text', []))
+                result.append(text.rstrip())
+                
+            elif output_type in ('execute_result', 'display_data'):
+                data = output.get('data', {})
+                # Try to get text representation
+                if 'text/plain' in data:
+                    text = self._source_to_string(data['text/plain'])
+                    result.append(text.rstrip())
+                
+                # Check for images or other binary data
+                binary_keys = [k for k in data.keys() if k.startswith('image/') or k == 'application/pdf']
+                if binary_keys:
+                    for key in binary_keys:
+                        result.append(f"[BINARY DATA DETECTED: {key}]")
+                        result.append(f"(Use 'save-output' command to extract this data)")
+                
+                if not 'text/plain' in data and not binary_keys:
+                     result.append(f"[Complex Data: {list(data.keys())}]")
+
+            elif output_type == 'error':
+                ename = output.get('ename', 'Error')
+                evalue = output.get('evalue', '')
+                traceback = output.get('traceback', [])
+                result.append(f"{ename}: {evalue}")
+                if traceback:
+                    result.append("\n".join(traceback))
+            
+            result.append("") # Empty line after output
+            
+        return "\n".join(result)
 
     def list_cells(self, limit: int = 0):
         """Lists cells with summary."""
@@ -96,7 +134,7 @@ class NotebookEditor:
                 print("... (limit reached)")
                 break
 
-    def read_cell(self, index: int, to_file: Optional[str] = None):
+    def read_cell(self, index: int, to_file: Optional[str] = None, include_output: bool = False):
         """Reads a specific cell."""
         cells = self.data.get('cells', [])
         if index < 0 or index >= len(cells):
@@ -105,19 +143,73 @@ class NotebookEditor:
 
         cell = cells[index]
         source_content = self._source_to_string(cell.get('source', []))
+        
+        output_content = ""
+        if include_output and 'outputs' in cell:
+            output_content = "\n\n" + self._get_cell_outputs(cell['outputs'])
+
+        full_content = source_content + output_content
 
         if to_file:
             try:
                 with open(to_file, 'w', encoding='utf-8') as f:
-                    f.write(source_content)
+                    f.write(full_content)
                 print(f"Cell {index} content written to '{to_file}'")
             except Exception as e:
                 print(f"Error writing to file: {e}")
                 sys.exit(1)
         else:
             print(f"--- Cell {index} ({cell.get('cell_type')}) ---")
-            print(source_content)
+            print(full_content)
             print("---------------------------")
+
+    def save_output(self, cell_index: int, output_index: int, to_file: str):
+        """Saves a binary output (e.g. image) to a file."""
+        cells = self.data.get('cells', [])
+        if cell_index < 0 or cell_index >= len(cells):
+            print(f"Error: Cell index {cell_index} out of range.")
+            sys.exit(1)
+            
+        cell = cells[cell_index]
+        outputs = cell.get('outputs', [])
+        
+        if output_index < 0 or output_index >= len(outputs):
+            print(f"Error: Output index {output_index} out of range (Cell {cell_index} has {len(outputs)} outputs).")
+            sys.exit(1)
+            
+        output = outputs[output_index]
+        data = output.get('data', {})
+        
+        # Find the best binary candidate if multiple exist, or check specific mime types?
+        # For now, we take the first image-like or application/pdf key.
+        target_key = None
+        for key in data.keys():
+            if key.startswith('image/') or key == 'application/pdf':
+                target_key = key
+                break
+        
+        if not target_key:
+            print(f"Error: No supported binary data found in Output {output_index} of Cell {cell_index}.")
+            print(f"Available keys: {list(data.keys())}")
+            sys.exit(1)
+            
+        b64_data = data[target_key]
+        
+        # If it's a list (some older formats?), join it. Usually base64 in json is a string or list of strings.
+        if isinstance(b64_data, list):
+            b64_data = "".join(b64_data)
+        
+        # Remove newlines just in case
+        b64_data = b64_data.replace('\n', '')
+        
+        try:
+            decoded_data = base64.b64decode(b64_data)
+            with open(to_file, 'wb') as f:
+                f.write(decoded_data)
+            print(f"Saved {target_key} data from Cell {cell_index}, Output {output_index} to '{to_file}'.")
+        except Exception as e:
+            print(f"Error saving output to file: {e}")
+            sys.exit(1)
 
     def add_cell(self, index: int, cell_type: str, content: str):
         """Adds a new cell."""
@@ -245,6 +337,7 @@ def main():
     add_nb_arg(parser_read)
     parser_read.add_argument("index", type=int, help="Cell index")
     parser_read.add_argument("--to-file", help="Save content to this file")
+    parser_read.add_argument("--include-output", action="store_true", help="Include cell output in the result")
 
     # SEARCH
     parser_search = subparsers.add_parser("search", help="Search in notebook")
@@ -287,6 +380,13 @@ def main():
     parser_create = subparsers.add_parser("create", help="Create a new empty notebook")
     add_nb_arg(parser_create)
 
+    # SAVE OUTPUT
+    parser_save_output = subparsers.add_parser("save-output", help="Save binary output (image) to file")
+    add_nb_arg(parser_save_output)
+    parser_save_output.add_argument("index", type=int, help="Cell index")
+    parser_save_output.add_argument("--output-index", type=int, default=0, help="Index of the output in the cell (default 0)")
+    parser_save_output.add_argument("--to-file", required=True, help="Destination file for the output")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -312,7 +412,7 @@ def main():
         editor.list_cells(args.limit)
     
     elif args.command == "read":
-        editor.read_cell(args.index, args.to_file)
+        editor.read_cell(args.index, args.to_file, args.include_output)
     
     elif args.command == "search":
         editor.search(args.query, args.regex)
@@ -335,6 +435,9 @@ def main():
     elif args.command == "create":
         editor.save() # __init__ creates the structure, save writes it
         print(f"Created new notebook at {args.notebook}")
+
+    elif args.command == "save-output":
+        editor.save_output(args.index, args.output_index, args.to_file)
 
 if __name__ == "__main__":
     main()

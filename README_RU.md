@@ -112,6 +112,9 @@ python notebook_editor.py read <notebook.ipynb> <индекс_ячейки> [--t
 # Вывод в консоль
 python notebook_editor.py read analysis.ipynb 5
 
+# Вывод вместе с результатами выполнения (текст и плейсхолдеры картинок)
+python notebook_editor.py read analysis.ipynb 5 --include-output
+
 # Сохранение в файл (РЕКОМЕНДУЕТСЯ для редактирования кода)
 python notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
 ```
@@ -253,6 +256,28 @@ python notebook_editor.py create <notebook.ipynb>
 
 ```bash
 python notebook_editor.py create new_analysis.ipynb
+```
+
+---
+
+### 9. **save-output** - Извлечение изображений/бинарных данных
+
+Извлекает бинарные данные (например, картинки) из вывода ячейки в локальный файл.
+
+```bash
+python notebook_editor.py save-output <notebook.ipynb> <индекс_ячейки> --to-file <путь_к_файлу> [--output-index N]
+```
+
+**Пример:**
+
+```bash
+# Сохранить график из 5-й ячейки в файл
+python notebook_editor.py save-output analysis.ipynb 5 --to-file plot.png
+```
+
+**Вывод:**
+```
+Saved image/png data from Cell 5, Output 0 to 'plot.png'.
 ```
 
 ---
