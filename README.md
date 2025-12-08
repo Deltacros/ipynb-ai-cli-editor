@@ -74,7 +74,7 @@ python notebook_editor.py delete my_notebook.ipynb 5
 
 ### 1. **list** - View Notebook Structure
 
-Shows all cells with their indices, types, and content preview.
+Shows all cells with their indices, types, and content preview (first 2 and last 2 lines of code, plus output summary).
 
 ```bash
 python notebook_editor.py list <notebook.ipynb> [--limit N]
@@ -90,9 +90,14 @@ python notebook_editor.py list analysis.ipynb --limit 20
 
 ```
 Total cells: 15
-[0] CODE: import pandas as pd
-[1] CODE: df = pd.read_csv('data.csv')
-[2] MARKDOWN: ## Data Analysis
+[0] CODE:
+    | import pandas as pd
+[1] CODE:
+    | df = pd.read_csv('data.csv')
+    [OUTPUTS DETAILS]:
+    > [Data present]
+[2] MARKDOWN:
+    | ## Data Analysis
 ...
 ```
 
@@ -123,7 +128,7 @@ python notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
 
 ### 3. **search** - Find Content
 
-Search for text or regex patterns across all cells.
+Search for text or regex patterns across all cells (including code, markdown, and execution outputs).
 
 ```bash
 python notebook_editor.py search <notebook.ipynb> "<query>" [--regex]
@@ -142,10 +147,13 @@ python notebook_editor.py search analysis.ipynb "def .*_handler" --regex
 **Output:**
 
 ```
-Match in Cell [3] (code):
+Match in Cell [3] SOURCE (code):
   > import pandas as pd
-Match in Cell [7] (code):
+Match in Cell [7] SOURCE (code):
   > df = pandas.DataFrame()
+Match in Cell [7] OUTPUT 0:
+  >> 0     0.36
+  >> 1     0.42
 Found matches in 2 cells: [3, 7]
 ```
 

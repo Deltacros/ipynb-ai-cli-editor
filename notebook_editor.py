@@ -124,12 +124,67 @@ class NotebookEditor:
             cell_type = cell.get('cell_type', 'unknown').upper()
             source = self._normalize_source(cell.get('source', []))
             
-            preview = ""
-            if source:
-                first_line = source[0].strip()
-                preview = first_line[:60] + "..." if len(first_line) > 60 else first_line
+            # Source Preview (First 2 + Last 2 lines)
+            source_lines = [line.rstrip() for line in source]
+            if not source_lines:
+                preview_source = ""
+            elif len(source_lines) <= 4:
+                preview_source = "\n".join([f"    | {line}" for line in source_lines])
+            else:
+                first_two = [f"    | {line}" for line in source_lines[:2]]
+                last_two = [f"    | {line}" for line in source_lines[-2:]]
+                preview_source = "\n".join(first_two + ["    | ..."] + last_two)
+
+            # Output Preview
+            outputs = cell.get('outputs', [])
+            output_info = []
+            if outputs:
+                output_info.append("    [OUTPUTS DETAILS]:")
+                
+                # Check for images and text
+                has_image = False
+                text_lines_found = []
+                
+                for output in outputs:
+                    # Text extraction
+                    text_content = []
+                    if output.get('output_type') == 'stream':
+                        text_content = self._normalize_source(output.get('text', []))
+                    elif 'data' in output and 'text/plain' in output['data']:
+                        text_content = self._normalize_source(output['data']['text/plain'])
+                    
+                    if text_content and len(text_lines_found) < 2:
+                        for line in text_content:
+                            if line.strip() and len(text_lines_found) < 2:
+                                text_lines_found.append(line.rstrip())
+                    
+                    # Image detection
+                    if 'data' in output:
+                        for key in output['data']:
+                            if key.startswith('image/'):
+                                has_image = True
+                                break
+                                
+                if text_lines_found:
+                    for line in text_lines_found:
+                        output_info.append(f"    > {line[:80]}")
+                    if len(text_lines_found) >= 2:
+                         output_info.append("    > ...")
+
+                if has_image:
+                     output_info.append("    > [IMAGE DETECTED]")
+                
+                if not text_lines_found and not has_image:
+                    output_info.append("    > [Data present]")
             
-            print(f"[{i}] {cell_type}: {preview}")
+            # Print Cell Record
+            print(f"[{i}] {cell_type}:")
+            if preview_source:
+                print(preview_source)
+            if output_info:
+                print("\n".join(output_info))
+            print("") # Separator
+
             if limit > 0 and i >= limit - 1:
                 print("... (limit reached)")
                 break
@@ -264,33 +319,55 @@ class NotebookEditor:
         self.save()
 
     def search(self, query: str, use_regex: bool = False):
-        """Searches for text in cells."""
+        """Searches for text in cells (source and outputs)."""
         cells = self.data.get('cells', [])
-        results = []
+        results = set()
         
         for i, cell in enumerate(cells):
+            # 1. Search in Source
             source = self._source_to_string(cell.get('source', []))
-            match = False
-            if use_regex:
-                if re.search(query, source, re.MULTILINE):
-                    match = True
-            else:
-                if query in source:
-                    match = True
+            match_found = False
             
-            if match:
-                results.append(i)
-                print(f"Match in Cell [{i}] ({cell.get('cell_type')}):")
-                # Show context (line with match)
+            # Helper for matching
+            def check_match(text):
+                if use_regex:
+                    return bool(re.search(query, text, re.MULTILINE))
+                return query in text
+
+            if check_match(source):
+                match_found = True
+                print(f"Match in Cell [{i}] SOURCE ({cell.get('cell_type')}):")
                 lines = source.splitlines()
                 for line in lines:
                     if (use_regex and re.search(query, line)) or (not use_regex and query in line):
                         print(f"  > {line.strip()[:80]}")
 
+            # 2. Search in Outputs (if applicable)
+            outputs = cell.get('outputs', [])
+            for out_idx, output in enumerate(outputs):
+                output_text = ""
+                if output.get('output_type') == 'stream':
+                     output_text = self._source_to_string(output.get('text', []))
+                elif 'data' in output and 'text/plain' in output['data']:
+                     output_text = self._source_to_string(output['data']['text/plain'])
+                elif output.get('output_type') == 'error':
+                    output_text = f"{output.get('ename', '')}: {output.get('evalue', '')}"
+
+                if output_text and check_match(output_text):
+                    match_found = True
+                    print(f"Match in Cell [{i}] OUTPUT {out_idx}:")
+                    lines = output_text.splitlines()
+                    for line in lines:
+                         if (use_regex and re.search(query, line)) or (not use_regex and query in line):
+                             print(f"  >> {line.strip()[:80]}")
+
+            if match_found:
+                results.add(i)
+
         if not results:
             print("No matches found.")
         else:
-            print(f"Found matches in {len(results)} cells: {results}")
+            print(f"Found matches in {len(results)} cells: {sorted(list(results))}")
 
     def show_diff(self, index: int, new_content: str):
         """Shows diff between current cell content and new content."""

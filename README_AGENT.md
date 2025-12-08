@@ -33,7 +33,7 @@ To make changes to the code, always follow this algorithm:
 
 ### 1. View Structure (`list`)
 
-Shows indices, cell types, and the beginning of their content.
+Shows indices, cell types, and content preview (first 2 and last 2 lines of code, plus output summary).
 
 ```bash
 python notebook_editor.py list my_notebook.ipynb --limit 50
@@ -55,7 +55,7 @@ python notebook_editor.py list my_notebook.ipynb --limit 50
 
 ### 3. Search (`search`)
 
-Finds cells containing text or regex.
+Finds cells containing text or regex (in source code and execution outputs).
 
 ```bash
 python notebook_editor.py search my_notebook.ipynb "import pandas"

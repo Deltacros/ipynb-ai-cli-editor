@@ -74,7 +74,7 @@ python notebook_editor.py delete my_notebook.ipynb 5
 
 ### 1. **list** - Просмотр структуры ноутбука
 
-Показывает все ячейки с их индексами, типами и превью содержимого.
+Показывает все ячейки с их индексами, типами и превью содержимого (первые 2 и последние 2 строки кода, плюс сводка по выводу).
 
 ```bash
 python notebook_editor.py list <notebook.ipynb> [--limit N]
@@ -90,9 +90,14 @@ python notebook_editor.py list analysis.ipynb --limit 20
 
 ```
 Total cells: 15
-[0] CODE: import pandas as pd
-[1] CODE: df = pd.read_csv('data.csv')
-[2] MARKDOWN: ## Анализ данных
+[0] CODE:
+    | import pandas as pd
+[1] CODE:
+    | df = pd.read_csv('data.csv')
+    [OUTPUTS DETAILS]:
+    > [Data present]
+[2] MARKDOWN:
+    | ## Анализ данных
 ...
 ```
 
@@ -123,7 +128,7 @@ python notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
 
 ### 3. **search** - Поиск содержимого
 
-Поиск текста или regex-паттернов во всех ячейках.
+Поиск текста или regex-паттернов во всех ячейках (включая код, markdown и результаты выполнения).
 
 ```bash
 python notebook_editor.py search <notebook.ipynb> "<запрос>" [--regex]
@@ -142,10 +147,13 @@ python notebook_editor.py search analysis.ipynb "def .*_handler" --regex
 **Вывод:**
 
 ```
-Match in Cell [3] (code):
+Match in Cell [3] SOURCE (code):
   > import pandas as pd
-Match in Cell [7] (code):
+Match in Cell [7] SOURCE (code):
   > df = pandas.DataFrame()
+Match in Cell [7] OUTPUT 0:
+  >> 0     0.36
+  >> 1     0.42
 Found matches in 2 cells: [3, 7]
 ```
 
