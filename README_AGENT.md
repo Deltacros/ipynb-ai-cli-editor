@@ -21,6 +21,8 @@ To make changes to the code, always follow this algorithm:
 5. **Apply**: Update the cell from the file.
     `python notebook_editor.py update <notebook.ipynb> <cell_index> --from-file <temp_file.py>`
 
+> **Why from-file?** Shells often mangle newlines and indentation when passing code strings directly. Using files guarantees exact preservation of your code structure.
+
 ### Inspecting Outputs
 
 *   **View Results**: To see what your code printed or returned:
@@ -71,6 +73,8 @@ Replaces the content of a cell. Automatically clears the cell output.
     ```bash
     python notebook_editor.py update my_notebook.ipynb 5 --from-file updated_code.py
     ```
+
+    > **CRITICAL:** Always use `--from-file` for multi-line code or code with indentation. Passing code via `--content` arg in CLI often breaks indentation and newlines due to shell escaping issues (code becomes "one column").
 
 * **With Text** (Only for single lines):
 
