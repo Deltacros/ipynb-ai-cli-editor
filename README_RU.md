@@ -50,22 +50,22 @@ cd notebook-editor
 
 ```bash
 # Список всех ячеек в ноутбуке
-python notebook_editor.py list my_notebook.ipynb
+python3 notebook_editor.py list my_notebook.ipynb
 
-# Прочитать конкретную ячейку
-python notebook_editor.py read my_notebook.ipynb 5 --to-file cell_content.py
+# Прочитать конкретную ячейку с номерами строк
+python3 notebook_editor.py read my_notebook.ipynb 5 --numbered
 
 # Обновить ячейку из файла
-python notebook_editor.py update my_notebook.ipynb 5 --from-file modified_content.py
+python3 notebook_editor.py update my_notebook.ipynb 5 --from-file modified_content.py
+
+# Редактировать только конкретные строки
+python3 notebook_editor.py patch my_notebook.ipynb 5 --lines 10-15 --from-file patch.py
+
+# Очистить выводы всех ячеек
+python3 notebook_editor.py clear-output my_notebook.ipynb --all
 
 # Поиск содержимого
-python notebook_editor.py search my_notebook.ipynb "import pandas"
-
-# Добавить новую ячейку
-python notebook_editor.py add my_notebook.ipynb --type code --from-file new_code.py
-
-# Удалить ячейку
-python notebook_editor.py delete my_notebook.ipynb 5
+python3 notebook_editor.py search my_notebook.ipynb "import pandas"
 ```
 
 ---
@@ -74,31 +74,32 @@ python notebook_editor.py delete my_notebook.ipynb 5
 
 ### 1. **list** - Просмотр структуры ноутбука
 
-Показывает все ячейки с их индексами, типами и превью содержимого (первые 2 и последние 2 строки кода, плюс сводка по выводу).
+Показывает все ячейки с их индексами, типами и превью содержимого.
 
 ```bash
-python notebook_editor.py list <notebook.ipynb> [--limit N]
+python3 notebook_editor.py list <notebook.ipynb> [--limit N] [--json]
 ```
 
-**Пример:**
+**Примеры:**
 
 ```bash
-python notebook_editor.py list analysis.ipynb --limit 20
+# Обычный вывод
+python3 notebook_editor.py list analysis.ipynb --limit 20
+
+# JSON вывод (для парсинга LLM)
+python3 notebook_editor.py list analysis.ipynb --json
 ```
 
-**Вывод:**
+**JSON вывод:**
 
-```
-Total cells: 15
-[0] CODE:
-    | import pandas as pd
-[1] CODE:
-    | df = pd.read_csv('data.csv')
-    [OUTPUTS DETAILS]:
-    > [Data present]
-[2] MARKDOWN:
-    | ## Анализ данных
-...
+```json
+{
+  "notebook": "analysis.ipynb",
+  "total_cells": 15,
+  "cells": [
+    {"index": 0, "type": "code", "lines": 10, "has_output": true, ...}
+  ]
+}
 ```
 
 ---
@@ -108,236 +109,269 @@ Total cells: 15
 Читает содержимое конкретной ячейки в консоль или файл.
 
 ```bash
-python notebook_editor.py read <notebook.ipynb> <индекс_ячейки> [--to-file <выходной_файл>]
+python3 notebook_editor.py read <notebook.ipynb> <индекс> [--to-file <файл>] [--numbered] [--include-output]
 ```
 
 **Примеры:**
 
 ```bash
-# Вывод в консоль
-python notebook_editor.py read analysis.ipynb 5
+# Вывод с номерами строк — удобно для patch
+python3 notebook_editor.py read analysis.ipynb 5 --numbered
 
-# Вывод вместе с результатами выполнения (текст и плейсхолдеры картинок)
-python notebook_editor.py read analysis.ipynb 5 --include-output
+# Сохранение в файл
+python3 notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
 
-# Сохранение в файл (РЕКОМЕНДУЕТСЯ для редактирования кода)
-python notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
+# Вместе с результатами выполнения
+python3 notebook_editor.py read analysis.ipynb 5 --include-output
+```
+
+**Вывод с --numbered:**
+
+```
+--- Cell 5 (code) [17 lines] ---
+ 1: import pandas as pd
+ 2: import numpy as np
+ 3: 
+ 4: def calculate_mean(data):
+ 5:     """Calculate the mean."""
+ 6:     return sum(data) / len(data)
+...
 ```
 
 ---
 
 ### 3. **search** - Поиск содержимого
 
-Поиск текста или regex-паттернов во всех ячейках (включая код, markdown и результаты выполнения).
+Поиск текста или regex-паттернов во всех ячейках.
 
 ```bash
-python notebook_editor.py search <notebook.ipynb> "<запрос>" [--regex]
+python3 notebook_editor.py search <notebook.ipynb> "<запрос>" [--regex]
 ```
 
 **Примеры:**
 
 ```bash
 # Простой текстовый поиск
-python notebook_editor.py search analysis.ipynb "import pandas"
+python3 notebook_editor.py search analysis.ipynb "import pandas"
 
 # Поиск по регулярному выражению
-python notebook_editor.py search analysis.ipynb "def .*_handler" --regex
-```
-
-**Вывод:**
-
-```
-Match in Cell [3] SOURCE (code):
-  > import pandas as pd
-Match in Cell [7] SOURCE (code):
-  > df = pandas.DataFrame()
-Match in Cell [7] OUTPUT 0:
-  >> 0     0.36
-  >> 1     0.42
-Found matches in 2 cells: [3, 7]
+python3 notebook_editor.py search analysis.ipynb "def .*_handler" --regex
 ```
 
 ---
 
 ### 4. **update** - Изменение содержимого ячейки
 
-Заменяет содержимое существующей ячейки. Автоматически очищает выходные данные ячейки.
+Заменяет содержимое существующей ячейки целиком.
 
 ```bash
-python notebook_editor.py update <notebook.ipynb> <индекс_ячейки> --from-file <файл>
-python notebook_editor.py update <notebook.ipynb> <индекс_ячейки> --content "<текст>"
+python3 notebook_editor.py update <notebook.ipynb> <индекс> --from-file <файл>
+python3 notebook_editor.py update <notebook.ipynb> <индекс> --content "<текст>"
 ```
 
 **Примеры:**
 
 ```bash
 # Обновление из файла (РЕКОМЕНДУЕТСЯ)
-python notebook_editor.py update analysis.ipynb 5 --from-file modified_code.py
-
-# Обновление инлайн-текстом (для простых изменений)
-python notebook_editor.py update analysis.ipynb 5 --content "print('Hello World')"
+python3 notebook_editor.py update analysis.ipynb 5 --from-file modified_code.py
 
 # Сохранить выходные данные (не очищать)
-python notebook_editor.py update analysis.ipynb 5 --from-file code.py --no-clear-output
+python3 notebook_editor.py update analysis.ipynb 5 --from-file code.py --no-clear-output
 ```
 
 ---
 
-### 5. **add** - Вставка новой ячейки
+### 5. **patch** - Редактирование конкретных строк
 
-Добавляет новую code или markdown ячейку в указанную позицию.
+Заменяет только указанные строки в ячейке. **Гораздо эффективнее чем update!**
 
 ```bash
-python notebook_editor.py add <notebook.ipynb> --type <code|markdown> --from-file <файл>
-python notebook_editor.py add <notebook.ipynb> --type <code|markdown> --content "<текст>"
+python3 notebook_editor.py patch <notebook.ipynb> <индекс> --lines <диапазон> --from-file <файл>
+python3 notebook_editor.py patch <notebook.ipynb> <индекс> --lines <диапазон> --content "<текст>"
+```
+
+**Примеры:**
+
+```bash
+# Заменить строки 5-10
+python3 notebook_editor.py patch analysis.ipynb 3 --lines 5-10 --from-file patch.py
+
+# Заменить одну строку
+python3 notebook_editor.py patch analysis.ipynb 3 --lines 7-7 --content "new_value = 42"
+
+# Вставить после строки 5 (не заменять, а добавить)
+python3 notebook_editor.py patch analysis.ipynb 3 --lines 5 --insert --from-file insert.py
+
+# Без автоматического сохранения отступов
+python3 notebook_editor.py patch analysis.ipynb 3 --lines 5-10 --from-file patch.py --no-preserve-indent
+```
+
+**Ключевые особенности:**
+- ✅ Автоматически сохраняет относительные отступы
+- ✅ Режим вставки (`--insert`) — добавляет код без замены
+- ✅ Автоочистка выводов после редактирования
+
+---
+
+### 6. **add** - Вставка новой ячейки
+
+Добавляет новую code или markdown ячейку.
+
+```bash
+python3 notebook_editor.py add <notebook.ipynb> --type <code|markdown> --from-file <файл>
 ```
 
 **Примеры:**
 
 ```bash
 # Добавить в начало
-python notebook_editor.py add analysis.ipynb --index 0 --type markdown --content "# Введение"
+python3 notebook_editor.py add analysis.ipynb --index 0 --type markdown --content "# Введение"
 
 # Добавить в конец (по умолчанию)
-python notebook_editor.py add analysis.ipynb --type code --from-file new_analysis.py
-
-# Вставить в конкретную позицию
-python notebook_editor.py add analysis.ipynb --index 5 --type code --content "print('checkpoint')"
+python3 notebook_editor.py add analysis.ipynb --type code --from-file new_analysis.py
 ```
 
 ---
 
-### 6. **delete** - Удаление ячейки
-
-Удаляет ячейку по её индексу.
+### 7. **delete** - Удаление ячейки
 
 ```bash
-python notebook_editor.py delete <notebook.ipynb> <индекс_ячейки>
-```
-
-**Пример:**
-
-```bash
-python notebook_editor.py delete analysis.ipynb 5
+python3 notebook_editor.py delete <notebook.ipynb> <индекс>
 ```
 
 ---
 
-### 7. **diff** - Предпросмотр изменений
+### 8. **diff** - Предпросмотр изменений
 
 Показывает, что изменится перед обновлением ячейки.
 
 ```bash
-python notebook_editor.py diff <notebook.ipynb> <индекс_ячейки> --from-file <файл>
-python notebook_editor.py diff <notebook.ipynb> <индекс_ячейки> --content "<текст>"
-```
-
-**Пример:**
-
-```bash
-python notebook_editor.py diff analysis.ipynb 5 --from-file modified_code.py
-```
-
-**Вывод:**
-
-```diff
---- Cell 5 (Current)
-+++ New Content
-@@ -1,3 +1,4 @@
- import pandas as pd
--df = pd.read_csv('old_data.csv')
-+df = pd.read_csv('new_data.csv')
-+df = df.dropna()
+python3 notebook_editor.py diff <notebook.ipynb> <индекс> --from-file <файл>
 ```
 
 ---
 
-### 8. **create** - Создание нового ноутбука
-
-Создаёт новый пустой ноутбук с валидной структурой.
+### 9. **create** - Создание нового ноутбука
 
 ```bash
-python notebook_editor.py create <notebook.ipynb>
-```
-
-**Пример:**
-
-```bash
-python notebook_editor.py create new_analysis.ipynb
+python3 notebook_editor.py create <notebook.ipynb>
 ```
 
 ---
 
-### 9. **save-output** - Извлечение изображений/бинарных данных
+### 10. **clear-output** - Очистка выводов ячеек
 
-Извлекает бинарные данные (например, картинки) из вывода ячейки в локальный файл.
+Удаляет результаты выполнения из ячеек.
 
 ```bash
-python notebook_editor.py save-output <notebook.ipynb> <индекс_ячейки> --to-file <путь_к_файлу> [--output-index N]
+python3 notebook_editor.py clear-output <notebook.ipynb> --all
+python3 notebook_editor.py clear-output <notebook.ipynb> --cells 0 2 5
 ```
 
-**Пример:**
+**Примеры:**
 
 ```bash
-# Сохранить график из 5-й ячейки в файл
-python notebook_editor.py save-output analysis.ipynb 5 --to-file plot.png
+# Очистить все code-ячейки
+python3 notebook_editor.py clear-output analysis.ipynb --all
+
+# Очистить конкретные ячейки
+python3 notebook_editor.py clear-output analysis.ipynb --cells 0 2 5
+```
+
+---
+
+### 11. **info** - Метаданные ноутбука
+
+Показывает информацию о ноутбуке.
+
+```bash
+python3 notebook_editor.py info <notebook.ipynb>
 ```
 
 **Вывод:**
+
 ```
-Saved image/png data from Cell 5, Output 0 to 'plot.png'.
+Notebook: analysis.ipynb
+Format: nbformat 4.5
+Kernel: Python 3
+Cells: 25 total
+  - Code: 18
+  - Markdown: 7
+  - With outputs: 12
+Total source lines: 450
 ```
+
+---
+
+### 12. **validate** - Проверка структуры
+
+Проверяет валидность JSON-структуры ноутбука.
+
+```bash
+python3 notebook_editor.py validate <notebook.ipynb>
+```
+
+Возвращает exit code 1 при ошибках — удобно для CI/CD.
+
+---
+
+### 13. **save-output** - Извлечение изображений
+
+```bash
+python3 notebook_editor.py save-output <notebook.ipynb> <индекс> --to-file <путь>
+```
+
+---
+
+## 📋 Сводная таблица команд
+
+| Команда | Описание | Ключевые флаги |
+|---------|----------|----------------|
+| `list` | Просмотр структуры | `--limit`, `--json` |
+| `read` | Чтение ячейки | `--numbered`, `--to-file`, `--include-output` |
+| `search` | Поиск текста | `--regex` |
+| `update` | Замена всей ячейки | `--from-file`, `--no-clear-output` |
+| `patch` | Редактирование строк | `--lines`, `--insert`, `--no-preserve-indent` |
+| `add` | Добавление ячейки | `--index`, `--type`, `--from-file` |
+| `delete` | Удаление ячейки | - |
+| `diff` | Предпросмотр изменений | `--from-file` |
+| `clear-output` | Очистка выводов | `--all`, `--cells` |
+| `info` | Метаданные | - |
+| `validate` | Проверка структуры | - |
+| `create` | Новый ноутбук | - |
+| `save-output` | Извлечение картинок | `--output-index`, `--to-file` |
 
 ---
 
 ## 🤖 Лучшие практики для AI-агентов
 
-> **Примечание для пользователей:** Специальное руководство для AI-агентов находится в файле [`README_AGENT.md`](README_AGENT.md). Пожалуйста, предоставьте этот файл вашему AI-агенту, чтобы он мог эффективно использовать этот инструмент.
+> **Примечание для пользователей:** Специальное руководство для AI-агентов находится в файле [`README_AGENT.md`](README_AGENT.md).
 
-При изменении кода в ноутбуке следуйте этому **паттерну обмена файлами**:
+### Рекомендуемый рабочий процесс
 
 ```bash
-# 1. Исследование: Понять структуру ноутбука
-python notebook_editor.py list notebook.ipynb
+# 1. Исследование: Понять структуру
+python3 notebook_editor.py list notebook.ipynb
 
-# 2. Извлечение: Экспортировать содержимое ячейки во временный файл
-python notebook_editor.py read notebook.ipynb 5 --to-file temp_cell.py
+# 2. Чтение с номерами строк
+python3 notebook_editor.py read notebook.ipynb 5 --numbered
 
-# 3. Редактирование: Прочитать temp_cell.py, внести изменения, сохранить
-# (AI-агент или человек редактирует temp_cell.py здесь)
+# 3. Точечное редактирование (эффективнее чем update)
+python3 notebook_editor.py patch notebook.ipynb 5 --lines 10-15 --from-file patch.py
 
-# 4. Предпросмотр: (Опционально) Проверить, что изменится
-python notebook_editor.py diff notebook.ipynb 5 --from-file temp_cell.py
-
-# 5. Применение: Обновить ячейку из изменённого файла
-python notebook_editor.py update notebook.ipynb 5 --from-file temp_cell.py
+# ИЛИ полная замена ячейки
+python3 notebook_editor.py read notebook.ipynb 5 --to-file temp.py
+# (редактирование temp.py)
+python3 notebook_editor.py update notebook.ipynb 5 --from-file temp.py
 ```
 
-### Почему этот паттерн?
+### Преимущества patch перед update
 
-- **Надёжно**: Работа с файлами более предсказуема, чем манипуляции со строками
-- **Безопасно**: Предпросмотр изменений перед применением
-- **Ясно**: Каждый шаг имеет единственную, чётко определённую цель
-- **Отлаживаемо**: Промежуточные файлы можно проверить
-- **Дружелюбно к LLM**: Соответствует тому, как AI-агенты естественно работают с кодом
-
----
-
-## 🛠️ Сценарии использования
-
-### Для AI-агентов
-
-- Автоматизированный рефакторинг ноутбуков
-- Пакетное обновление кода в нескольких ноутбуках
-- Программная генерация ноутбуков
-- Интеграция в CI/CD пайплайны
-
-### Для разработчиков
-
-- Быстрое редактирование ноутбуков без Jupyter
-- Скриптовые модификации ноутбуков
-- Обновления ноутбуков, дружественные к системам контроля версий
-- Лёгкая манипуляция ноутбуками в ограниченных средах
+| update | patch |
+|--------|-------|
+| Нужно копировать всю ячейку | Редактируем только нужные строки |
+| Легко ошибиться в отступах | Отступы сохраняются автоматически |
+| Много токенов | Экономим токены |
 
 ---
 
@@ -370,70 +404,41 @@ python notebook_editor.py update notebook.ipynb 5 --from-file temp_cell.py
 
 ## 📝 Примеры
 
-### Пример 1: Пакетное обновление импортов
+### Пример 1: Быстрое исправление одной функции
 
 ```bash
-# Найти все ячейки со старым импортом
-python notebook_editor.py search notebook.ipynb "from old_module import"
+# Смотрим ячейку с номерами строк
+python3 notebook_editor.py read notebook.ipynb 3 --numbered
 
-# Для каждого совпадения обновить ячейку
-python notebook_editor.py read notebook.ipynb 3 --to-file temp.py
-# Отредактировать temp.py, заменив импорт
-python notebook_editor.py update notebook.ipynb 3 --from-file temp.py
+# Заменяем только строки 5-8
+python3 notebook_editor.py patch notebook.ipynb 3 --lines 5-8 --content "    return x * 2"
 ```
 
-### Пример 2: Добавление документации
+### Пример 2: Добавление валидации в функцию
 
 ```bash
-# Добавить markdown ячейку в начало
-python notebook_editor.py add notebook.ipynb --index 0 --type markdown --content "# Отчёт по анализу
+# Вставляем новый код после строки 4
+echo "    if x is None:
+        raise ValueError('x cannot be None')" > insert.py
 
-Этот ноутбук выполняет анализ данных о клиентах.
-
-## Автор: AI-агент
-## Дата: 2025-11-27"
+python3 notebook_editor.py patch notebook.ipynb 3 --lines 4 --insert --from-file insert.py
 ```
 
-### Пример 3: Очистка отладочного кода
+### Пример 3: Очистка перед коммитом
 
 ```bash
-# Поиск отладочных принтов
-python notebook_editor.py search notebook.ipynb "print.*debug" --regex
+# Очищаем все выводы
+python3 notebook_editor.py clear-output notebook.ipynb --all
 
-# Удаление ячеек с отладочным кодом
-python notebook_editor.py delete notebook.ipynb 7
-python notebook_editor.py delete notebook.ipynb 12
+# Проверяем валидность
+python3 notebook_editor.py validate notebook.ipynb
 ```
-
----
-
-## 🤝 Вклад в проект
-
-Приветствуются любые вклады! Этот инструмент разработан простым и сфокусированным. При внесении вклада:
-
-1. Сохраняйте принцип нулевых зависимостей
-2. Держите CLI интерфейс чистым и предсказуемым
-3. Обеспечивайте совместимость с рабочими процессами AI-агентов
-4. Добавляйте тесты для новых функций
 
 ---
 
 ## 📄 Лицензия
 
 Лицензия MIT - свободно используйте в своих проектах!
-
----
-
-## 🙏 Благодарности
-
-Создано для сообщества AI-агентов, чтобы обеспечить бесшовную манипуляцию ноутбуками в автоматизированных рабочих процессах.
-
----
-
-## 📞 Поддержка
-
-- **Проблемы**: [GitHub Issues](https://github.com/yourusername/notebook-editor/issues)
-- **Обсуждения**: [GitHub Discussions](https://github.com/yourusername/notebook-editor/discussions)
 
 ---
 

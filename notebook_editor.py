@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Инструмент для редактирования Jupyter Notebook файлов агентами.
+Работаем без внешних зависимостей, сохраняем структуру JSON.
+"""
 import json
 import argparse
 import sys
@@ -9,15 +13,36 @@ import base64
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 
+
 class NotebookEditor:
+    """
+    Класс для работы с Jupyter Notebook файлами.
+    Загружаем, редактируем, сохраняем ноутбуки программно.
+    """
+    
     def __init__(self, filepath: str):
+        """
+        Инициализируем редактор ноутбука.
+        
+        params:
+            filepath: Путь к .ipynb файлу
+        return:
+            None
+        """
         self.filepath = Path(filepath)
         self.data = self._load_notebook()
 
     def _load_notebook(self) -> Dict[str, Any]:
-        """Loads the notebook JSON. Creates a new one if it doesn't exist."""
+        """
+        Загружаем JSON ноутбука. Создаём новый если файл не существует.
+        
+        params:
+            None
+        return:
+            Dict с данными ноутбука
+        """
         if not self.filepath.exists():
-            # Create a new minimal notebook structure
+            # Создаём минимальную структуру ноутбука
             return {
                 "cells": [],
                 "metadata": {
@@ -51,11 +76,18 @@ class NotebookEditor:
             sys.exit(1)
 
     def save(self):
-        """Saves the current state of the notebook to the file."""
+        """
+        Сохраняем текущее состояние ноутбука в файл.
+        
+        params:
+            None
+        return:
+            None
+        """
         try:
             with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(self.data, f, indent=1, ensure_ascii=False)
-            # Add a newline at the end of the file for good measure
+            # Добавляем перенос строки в конец файла
             with open(self.filepath, 'a', encoding='utf-8') as f:
                 f.write('\n')
         except Exception as e:
@@ -63,21 +95,42 @@ class NotebookEditor:
             sys.exit(1)
 
     def _normalize_source(self, source: Union[str, List[str]]) -> List[str]:
-        """Ensures source is always a list of strings with proper newlines."""
+        """
+        Нормализуем source в список строк с переносами.
+        
+        params:
+            source: Строка или список строк
+        return:
+            Список строк с сохранёнными переносами
+        """
         if isinstance(source, str):
-            # Split by lines and keep newlines
+            # Разбиваем по строкам, сохраняем переносы
             lines = source.splitlines(keepends=True)
             return lines
         return source
 
     def _source_to_string(self, source: Union[str, List[str]]) -> str:
-        """Converts source list/string to a single string."""
+        """
+        Конвертируем source в единую строку.
+        
+        params:
+            source: Строка или список строк
+        return:
+            Объединённая строка
+        """
         if isinstance(source, list):
             return "".join(source)
         return source
 
     def _get_cell_outputs(self, outputs: List[Dict[str, Any]]) -> str:
-        """Parses cell outputs into a human-readable string representation."""
+        """
+        Парсим выводы ячейки в читаемую строку.
+        
+        params:
+            outputs: Список объектов вывода ячейки
+        return:
+            Форматированная строка с выводами
+        """
         result = []
         for i, output in enumerate(outputs):
             output_type = output.get('output_type', '')
@@ -89,12 +142,12 @@ class NotebookEditor:
                 
             elif output_type in ('execute_result', 'display_data'):
                 data = output.get('data', {})
-                # Try to get text representation
+                # Пробуем получить текстовое представление
                 if 'text/plain' in data:
                     text = self._source_to_string(data['text/plain'])
                     result.append(text.rstrip())
                 
-                # Check for images or other binary data
+                # Проверяем наличие изображений или бинарных данных
                 binary_keys = [k for k in data.keys() if k.startswith('image/') or k == 'application/pdf']
                 if binary_keys:
                     for key in binary_keys:
@@ -112,19 +165,26 @@ class NotebookEditor:
                 if traceback:
                     result.append("\n".join(traceback))
             
-            result.append("") # Empty line after output
+            result.append("")  # Пустая строка после вывода
             
         return "\n".join(result)
 
     def list_cells(self, limit: int = 0):
-        """Lists cells with summary."""
+        """
+        Выводим список ячеек с превью содержимого.
+        
+        params:
+            limit: Максимальное количество ячеек для вывода (0 = все)
+        return:
+            None
+        """
         cells = self.data.get('cells', [])
         print(f"Total cells: {len(cells)}")
         for i, cell in enumerate(cells):
             cell_type = cell.get('cell_type', 'unknown').upper()
             source = self._normalize_source(cell.get('source', []))
             
-            # Source Preview (First 2 + Last 2 lines)
+            # Превью кода (первые 2 + последние 2 строки)
             source_lines = [line.rstrip() for line in source]
             if not source_lines:
                 preview_source = ""
@@ -135,18 +195,18 @@ class NotebookEditor:
                 last_two = [f"    | {line}" for line in source_lines[-2:]]
                 preview_source = "\n".join(first_two + ["    | ..."] + last_two)
 
-            # Output Preview
+            # Превью вывода
             outputs = cell.get('outputs', [])
             output_info = []
             if outputs:
                 output_info.append("    [OUTPUTS DETAILS]:")
                 
-                # Check for images and text
+                # Проверяем наличие изображений и текста
                 has_image = False
                 text_lines_found = []
                 
                 for output in outputs:
-                    # Text extraction
+                    # Извлекаем текст
                     text_content = []
                     if output.get('output_type') == 'stream':
                         text_content = self._normalize_source(output.get('text', []))
@@ -158,7 +218,7 @@ class NotebookEditor:
                             if line.strip() and len(text_lines_found) < 2:
                                 text_lines_found.append(line.rstrip())
                     
-                    # Image detection
+                    # Определяем наличие изображений
                     if 'data' in output:
                         for key in output['data']:
                             if key.startswith('image/'):
@@ -177,49 +237,29 @@ class NotebookEditor:
                 if not text_lines_found and not has_image:
                     output_info.append("    > [Data present]")
             
-            # Print Cell Record
+            # Выводим информацию о ячейке
             print(f"[{i}] {cell_type}:")
             if preview_source:
                 print(preview_source)
             if output_info:
                 print("\n".join(output_info))
-            print("") # Separator
+            print("")  # Разделитель
 
             if limit > 0 and i >= limit - 1:
                 print("... (limit reached)")
                 break
 
-    def read_cell(self, index: int, to_file: Optional[str] = None, include_output: bool = False):
-        """Reads a specific cell."""
-        cells = self.data.get('cells', [])
-        if index < 0 or index >= len(cells):
-            print(f"Error: Cell index {index} out of range (0-{len(cells)-1})")
-            sys.exit(1)
-
-        cell = cells[index]
-        source_content = self._source_to_string(cell.get('source', []))
-        
-        output_content = ""
-        if include_output and 'outputs' in cell:
-            output_content = "\n\n" + self._get_cell_outputs(cell['outputs'])
-
-        full_content = source_content + output_content
-
-        if to_file:
-            try:
-                with open(to_file, 'w', encoding='utf-8') as f:
-                    f.write(full_content)
-                print(f"Cell {index} content written to '{to_file}'")
-            except Exception as e:
-                print(f"Error writing to file: {e}")
-                sys.exit(1)
-        else:
-            print(f"--- Cell {index} ({cell.get('cell_type')}) ---")
-            print(full_content)
-            print("---------------------------")
-
     def save_output(self, cell_index: int, output_index: int, to_file: str):
-        """Saves a binary output (e.g. image) to a file."""
+        """
+        Сохраняем бинарный вывод (изображение) в файл.
+        
+        params:
+            cell_index: Индекс ячейки
+            output_index: Индекс вывода внутри ячейки
+            to_file: Путь к файлу для сохранения
+        return:
+            None
+        """
         cells = self.data.get('cells', [])
         if cell_index < 0 or cell_index >= len(cells):
             print(f"Error: Cell index {cell_index} out of range.")
@@ -235,8 +275,7 @@ class NotebookEditor:
         output = outputs[output_index]
         data = output.get('data', {})
         
-        # Find the best binary candidate if multiple exist, or check specific mime types?
-        # For now, we take the first image-like or application/pdf key.
+        # Ищем подходящий бинарный ключ
         target_key = None
         for key in data.keys():
             if key.startswith('image/') or key == 'application/pdf':
@@ -250,11 +289,11 @@ class NotebookEditor:
             
         b64_data = data[target_key]
         
-        # If it's a list (some older formats?), join it. Usually base64 in json is a string or list of strings.
+        # Объединяем если это список
         if isinstance(b64_data, list):
             b64_data = "".join(b64_data)
         
-        # Remove newlines just in case
+        # Убираем переносы строк
         b64_data = b64_data.replace('\n', '')
         
         try:
@@ -267,7 +306,16 @@ class NotebookEditor:
             sys.exit(1)
 
     def add_cell(self, index: int, cell_type: str, content: str):
-        """Adds a new cell."""
+        """
+        Добавляем новую ячейку в ноутбук.
+        
+        params:
+            index: Позиция для вставки (-1 = в конец)
+            cell_type: Тип ячейки ('code' или 'markdown')
+            content: Содержимое ячейки
+        return:
+            None
+        """
         new_cell = {
             "cell_type": cell_type,
             "metadata": {},
@@ -291,7 +339,14 @@ class NotebookEditor:
         self.save()
 
     def delete_cell(self, index: int):
-        """Deletes a cell."""
+        """
+        Удаляем ячейку из ноутбука.
+        
+        params:
+            index: Индекс удаляемой ячейки
+        return:
+            None
+        """
         cells = self.data.get('cells', [])
         if index < 0 or index >= len(cells):
             print(f"Error: Cell index {index} out of range.")
@@ -302,7 +357,16 @@ class NotebookEditor:
         self.save()
 
     def update_cell(self, index: int, content: str, clear_outputs: bool = True):
-        """Updates content of a cell."""
+        """
+        Обновляем содержимое ячейки.
+        
+        params:
+            index: Индекс ячейки
+            content: Новое содержимое
+            clear_outputs: Очищаем ли выводы (по умолчанию True)
+        return:
+            None
+        """
         cells = self.data.get('cells', [])
         if index < 0 or index >= len(cells):
             print(f"Error: Cell index {index} out of range.")
@@ -319,16 +383,24 @@ class NotebookEditor:
         self.save()
 
     def search(self, query: str, use_regex: bool = False):
-        """Searches for text in cells (source and outputs)."""
+        """
+        Ищем текст в ячейках (в коде и выводах).
+        
+        params:
+            query: Строка поиска или regex-паттерн
+            use_regex: Использовать ли regex (по умолчанию False)
+        return:
+            None
+        """
         cells = self.data.get('cells', [])
         results = set()
         
         for i, cell in enumerate(cells):
-            # 1. Search in Source
+            # 1. Ищем в исходном коде
             source = self._source_to_string(cell.get('source', []))
             match_found = False
             
-            # Helper for matching
+            # Вспомогательная функция для проверки совпадения
             def check_match(text):
                 if use_regex:
                     return bool(re.search(query, text, re.MULTILINE))
@@ -342,7 +414,7 @@ class NotebookEditor:
                     if (use_regex and re.search(query, line)) or (not use_regex and query in line):
                         print(f"  > {line.strip()[:80]}")
 
-            # 2. Search in Outputs (if applicable)
+            # 2. Ищем в выводах
             outputs = cell.get('outputs', [])
             for out_idx, output in enumerate(outputs):
                 output_text = ""
@@ -370,7 +442,15 @@ class NotebookEditor:
             print(f"Found matches in {len(results)} cells: {sorted(list(results))}")
 
     def show_diff(self, index: int, new_content: str):
-        """Shows diff between current cell content and new content."""
+        """
+        Показываем diff между текущим и новым содержимым ячейки.
+        
+        params:
+            index: Индекс ячейки
+            new_content: Новое содержимое для сравнения
+        return:
+            None
+        """
         cells = self.data.get('cells', [])
         if index < 0 or index >= len(cells):
             print(f"Error: Cell index {index} out of range.")
@@ -378,7 +458,7 @@ class NotebookEditor:
 
         current_source = self._source_to_string(cells[index].get('source', []))
         
-        # Prepare for diff
+        # Подготавливаем для diff
         current_lines = current_source.splitlines(keepends=True)
         new_lines = new_content.splitlines(keepends=True)
         
@@ -396,11 +476,357 @@ class NotebookEditor:
         else:
             print("No differences found.")
 
+    def clear_outputs(self, indices: Optional[List[int]] = None):
+        """
+        Очищаем выводы ячеек.
+        
+        params:
+            indices: Список индексов для очистки (None = все code-ячейки)
+        return:
+            None
+        """
+        cells = self.data.get('cells', [])
+        cleared_count = 0
+        
+        if indices is None:
+            # Очищаем все code-ячейки
+            for cell in cells:
+                if cell.get('cell_type') == 'code':
+                    cell['outputs'] = []
+                    cell['execution_count'] = None
+                    cleared_count += 1
+            print(f"Cleared outputs of {cleared_count} code cells.")
+        else:
+            for i in indices:
+                if i < 0 or i >= len(cells):
+                    print(f"Warning: Cell index {i} out of range, skipping.")
+                    continue
+                if cells[i].get('cell_type') != 'code':
+                    print(f"Warning: Cell {i} is not a code cell, skipping.")
+                    continue
+                cells[i]['outputs'] = []
+                cells[i]['execution_count'] = None
+                cleared_count += 1
+                print(f"Cleared output of cell {i}.")
+        
+        if cleared_count > 0:
+            self.save()
+
+    def patch_lines(self, index: int, start_line: int, end_line: int, 
+                    new_content: str, preserve_indent: bool = True, insert_mode: bool = False):
+        """
+        Заменяем строки с start_line по end_line на new_content.
+        
+        params:
+            index: Индекс ячейки
+            start_line: Начальная строка (1-indexed)
+            end_line: Конечная строка (1-indexed, включительно)
+            new_content: Новое содержимое для замены
+            preserve_indent: Сохраняем ли отступ первой строки (по умолчанию True)
+            insert_mode: Вставляем после start_line вместо замены (по умолчанию False)
+        return:
+            None
+        """
+        cells = self.data.get('cells', [])
+        if index < 0 or index >= len(cells):
+            print(f"Error: Cell index {index} out of range (0-{len(cells)-1})")
+            sys.exit(1)
+
+        source = self._source_to_string(cells[index].get('source', []))
+        lines = source.splitlines(keepends=True)
+        
+        # Конвертируем в 0-indexed
+        start = start_line - 1
+        end = end_line  # end_line включительно, но используем как exclusive
+        
+        # Валидируем диапазон
+        if start < 0:
+            print(f"Error: start_line must be >= 1")
+            sys.exit(1)
+        if end > len(lines):
+            print(f"Error: end_line ({end_line}) exceeds total lines ({len(lines)})")
+            sys.exit(1)
+        if start > end and not insert_mode:
+            print(f"Error: start_line ({start_line}) > end_line ({end_line})")
+            sys.exit(1)
+        
+        # Обрабатываем режим вставки
+        if insert_mode:
+            # Вставляем после start_line
+            insert_pos = start_line  # Вставляем после этой строки
+            if insert_pos > len(lines):
+                insert_pos = len(lines)
+            
+            new_lines = new_content.splitlines(keepends=True)
+            # Гарантируем перенос в конце
+            if new_lines and not new_lines[-1].endswith('\n'):
+                new_lines[-1] += '\n'
+            
+            if preserve_indent and insert_pos > 0 and lines[insert_pos - 1] and new_lines:
+                # Вычисляем дельту отступов
+                ref_line = lines[insert_pos - 1]
+                original_indent = len(ref_line) - len(ref_line.lstrip())
+                
+                # Находим базовый отступ нового контента
+                new_first_line = next((l for l in new_lines if l.strip()), new_lines[0])
+                new_indent = len(new_first_line) - len(new_first_line.lstrip())
+                
+                indent_delta = original_indent - new_indent
+                
+                # Применяем дельту ко всем строкам
+                adjusted_lines = []
+                for line in new_lines:
+                    if line.strip():  # Непустая строка
+                        if indent_delta > 0:
+                            adjusted_lines.append(' ' * indent_delta + line)
+                        elif indent_delta < 0:
+                            current_indent = len(line) - len(line.lstrip())
+                            remove = min(-indent_delta, current_indent)
+                            adjusted_lines.append(line[remove:])
+                        else:
+                            adjusted_lines.append(line)
+                    else:
+                        adjusted_lines.append(line)
+                new_lines = adjusted_lines
+            
+            new_source = ''.join(lines[:insert_pos]) + ''.join(new_lines) + ''.join(lines[insert_pos:])
+            cells[index]['source'] = self._normalize_source(new_source)
+            print(f"Inserted {len(new_lines)} lines after line {start_line} in cell {index}.")
+        else:
+            # Режим замены
+            new_lines = new_content.splitlines(keepends=True)
+            # Гарантируем перенос если заменяем в середине
+            if new_lines and end < len(lines) and not new_lines[-1].endswith('\n'):
+                new_lines[-1] += '\n'
+            
+            if preserve_indent and start < len(lines) and lines[start] and new_lines:
+                # Вычисляем дельту отступов
+                original_indent = len(lines[start]) - len(lines[start].lstrip())
+                # Находим базовый отступ нового контента
+                new_first_line = next((l for l in new_lines if l.strip()), new_lines[0])
+                new_indent = len(new_first_line) - len(new_first_line.lstrip())
+                
+                indent_delta = original_indent - new_indent
+                
+                # Применяем дельту ко всем строкам
+                adjusted_lines = []
+                for line in new_lines:
+                    if line.strip():  # Непустая строка
+                        if indent_delta > 0:
+                            # Добавляем пробелы
+                            adjusted_lines.append(' ' * indent_delta + line)
+                        elif indent_delta < 0:
+                            # Убираем пробелы (но не больше чем есть)
+                            current_indent = len(line) - len(line.lstrip())
+                            remove = min(-indent_delta, current_indent)
+                            adjusted_lines.append(line[remove:])
+                        else:
+                            adjusted_lines.append(line)
+                    else:
+                        adjusted_lines.append(line)
+                new_lines = adjusted_lines
+            
+            new_source = ''.join(lines[:start]) + ''.join(new_lines) + ''.join(lines[end:])
+            cells[index]['source'] = self._normalize_source(new_source)
+            print(f"Replaced lines {start_line}-{end_line} in cell {index}.")
+        
+        # Очищаем выводы так как код изменился
+        if cells[index].get('cell_type') == 'code':
+            cells[index]['outputs'] = []
+            cells[index]['execution_count'] = None
+        
+        self.save()
+
+    def read_cell(self, index: int, to_file: Optional[str] = None, 
+                  include_output: bool = False, numbered: bool = False):
+        """
+        Читаем содержимое ячейки с опциональной нумерацией строк.
+        
+        params:
+            index: Индекс ячейки
+            to_file: Путь для сохранения в файл (опционально)
+            include_output: Включаем ли вывод ячейки (по умолчанию False)
+            numbered: Показываем ли номера строк (по умолчанию False)
+        return:
+            None
+        """
+        cells = self.data.get('cells', [])
+        if index < 0 or index >= len(cells):
+            print(f"Error: Cell index {index} out of range (0-{len(cells)-1})")
+            sys.exit(1)
+
+        cell = cells[index]
+        source_content = self._source_to_string(cell.get('source', []))
+        
+        # Добавляем номера строк если запрошено
+        if numbered:
+            source_lines = source_content.splitlines(keepends=True)
+            # Вычисляем ширину для номеров строк
+            width = len(str(len(source_lines)))
+            numbered_lines = [f"{i+1:>{width}}: {line}" for i, line in enumerate(source_lines)]
+            source_content = ''.join(numbered_lines)
+        
+        output_content = ""
+        if include_output and 'outputs' in cell:
+            output_content = "\n\n" + self._get_cell_outputs(cell['outputs'])
+
+        full_content = source_content + output_content
+
+        if to_file:
+            try:
+                with open(to_file, 'w', encoding='utf-8') as f:
+                    f.write(full_content)
+                print(f"Cell {index} content written to '{to_file}'")
+            except Exception as e:
+                print(f"Error writing to file: {e}")
+                sys.exit(1)
+        else:
+            print(f"--- Cell {index} ({cell.get('cell_type')}) [{len(source_content.splitlines())} lines] ---")
+            print(full_content)
+            print("---------------------------")
+
+    def info(self):
+        """
+        Показываем метаданные и статистику ноутбука.
+        
+        params:
+            None
+        return:
+            None
+        """
+        cells = self.data.get('cells', [])
+        
+        code_cells = sum(1 for c in cells if c.get('cell_type') == 'code')
+        markdown_cells = sum(1 for c in cells if c.get('cell_type') == 'markdown')
+        cells_with_output = sum(1 for c in cells if c.get('outputs'))
+        
+        total_lines = 0
+        for cell in cells:
+            source = self._source_to_string(cell.get('source', []))
+            total_lines += len(source.splitlines())
+        
+        # Получаем информацию о ядре
+        kernel = self.data.get('metadata', {}).get('kernelspec', {}).get('display_name', 'Unknown')
+        nbformat = self.data.get('nbformat', '?')
+        nbformat_minor = self.data.get('nbformat_minor', '?')
+        
+        print(f"Notebook: {self.filepath}")
+        print(f"Format: nbformat {nbformat}.{nbformat_minor}")
+        print(f"Kernel: {kernel}")
+        print(f"Cells: {len(cells)} total")
+        print(f"  - Code: {code_cells}")
+        print(f"  - Markdown: {markdown_cells}")
+        print(f"  - With outputs: {cells_with_output}")
+        print(f"Total source lines: {total_lines}")
+
+    def validate(self) -> bool:
+        """
+        Проверяем валидность структуры ноутбука.
+        
+        params:
+            None
+        return:
+            True если ноутбук валиден, иначе False
+        """
+        errors = []
+        warnings = []
+        
+        # Проверяем обязательные поля верхнего уровня
+        if 'cells' not in self.data:
+            errors.append("Missing required field 'cells'")
+        if 'nbformat' not in self.data:
+            errors.append("Missing required field 'nbformat'")
+        if 'metadata' not in self.data:
+            warnings.append("Missing 'metadata' field")
+        
+        # Проверяем каждую ячейку
+        cells = self.data.get('cells', [])
+        for i, cell in enumerate(cells):
+            if 'cell_type' not in cell:
+                errors.append(f"Cell {i}: Missing 'cell_type'")
+            elif cell['cell_type'] not in ('code', 'markdown', 'raw'):
+                warnings.append(f"Cell {i}: Unknown cell_type '{cell['cell_type']}'")
+            
+            if 'source' not in cell:
+                errors.append(f"Cell {i}: Missing 'source'")
+            
+            if cell.get('cell_type') == 'code':
+                if 'outputs' not in cell:
+                    warnings.append(f"Cell {i}: Code cell missing 'outputs'")
+        
+        # Выводим результаты
+        if errors:
+            print("ERRORS:")
+            for e in errors:
+                print(f"  ✗ {e}")
+        
+        if warnings:
+            print("WARNINGS:")
+            for w in warnings:
+                print(f"  ⚠ {w}")
+        
+        if not errors and not warnings:
+            print("✓ Notebook is valid")
+        elif not errors:
+            print(f"✓ Notebook is valid ({len(warnings)} warnings)")
+        else:
+            print(f"✗ Notebook has {len(errors)} errors")
+        
+        return len(errors) == 0
+
+    def list_cells_json(self, limit: int = 0) -> str:
+        """
+        Возвращаем список ячеек в формате JSON для парсинга LLM.
+        
+        params:
+            limit: Максимальное количество ячеек (0 = все)
+        return:
+            JSON-строка с информацией о ячейках
+        """
+        cells = self.data.get('cells', [])
+        result = {
+            "notebook": str(self.filepath),
+            "total_cells": len(cells),
+            "cells": []
+        }
+        
+        for i, cell in enumerate(cells):
+            if limit > 0 and i >= limit:
+                break
+            
+            source = self._source_to_string(cell.get('source', []))
+            source_lines = source.splitlines()
+            
+            cell_info = {
+                "index": i,
+                "type": cell.get('cell_type', 'unknown'),
+                "lines": len(source_lines),
+                "has_output": bool(cell.get('outputs', [])),
+                "preview_first": source_lines[0][:80] if source_lines else "",
+                "preview_last": source_lines[-1][:80] if source_lines else ""
+            }
+            
+            # Проверяем наличие изображений в выводах
+            for output in cell.get('outputs', []):
+                if 'data' in output:
+                    for key in output['data']:
+                        if key.startswith('image/'):
+                            cell_info["has_image"] = True
+                            break
+            
+            result["cells"].append(cell_info)
+        
+        return json.dumps(result, ensure_ascii=False, indent=2)
+
+
 def main():
+    """
+    Главная функция CLI. Парсим аргументы и вызываем соответствующие методы.
+    """
     parser = argparse.ArgumentParser(description="Agent-Native Jupyter Notebook Editor")
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
-    # Common argument for notebook path
+    # Общий аргумент для пути к ноутбуку
     def add_nb_arg(p):
         p.add_argument("notebook", help="Path to the .ipynb file")
 
@@ -408,6 +834,7 @@ def main():
     parser_list = subparsers.add_parser("list", help="List cells in the notebook")
     add_nb_arg(parser_list)
     parser_list.add_argument("--limit", type=int, default=0, help="Limit output lines")
+    parser_list.add_argument("--json", action="store_true", help="Output as JSON (for LLM parsing)")
 
     # READ
     parser_read = subparsers.add_parser("read", help="Read a cell")
@@ -415,6 +842,7 @@ def main():
     parser_read.add_argument("index", type=int, help="Cell index")
     parser_read.add_argument("--to-file", help="Save content to this file")
     parser_read.add_argument("--include-output", action="store_true", help="Include cell output in the result")
+    parser_read.add_argument("--numbered", action="store_true", help="Show line numbers")
 
     # SEARCH
     parser_search = subparsers.add_parser("search", help="Search in notebook")
@@ -464,6 +892,32 @@ def main():
     parser_save_output.add_argument("--output-index", type=int, default=0, help="Index of the output in the cell (default 0)")
     parser_save_output.add_argument("--to-file", required=True, help="Destination file for the output")
 
+    # CLEAR-OUTPUT
+    parser_clear = subparsers.add_parser("clear-output", help="Clear cell outputs")
+    add_nb_arg(parser_clear)
+    clear_group = parser_clear.add_mutually_exclusive_group(required=True)
+    clear_group.add_argument("--all", action="store_true", help="Clear outputs of all code cells")
+    clear_group.add_argument("--cells", type=int, nargs="+", help="Cell indices to clear")
+
+    # PATCH
+    parser_patch = subparsers.add_parser("patch", help="Edit specific lines in a cell")
+    add_nb_arg(parser_patch)
+    parser_patch.add_argument("index", type=int, help="Cell index")
+    parser_patch.add_argument("--lines", required=True, help="Line range to replace (e.g. 5-10)")
+    patch_group = parser_patch.add_mutually_exclusive_group(required=True)
+    patch_group.add_argument("--content", help="New content string")
+    patch_group.add_argument("--from-file", help="Read new content from this file")
+    parser_patch.add_argument("--insert", action="store_true", help="Insert after start line instead of replacing")
+    parser_patch.add_argument("--no-preserve-indent", action="store_true", help="Don't preserve original indentation")
+
+    # INFO
+    parser_info = subparsers.add_parser("info", help="Show notebook metadata and statistics")
+    add_nb_arg(parser_info)
+
+    # VALIDATE
+    parser_validate = subparsers.add_parser("validate", help="Validate notebook structure")
+    add_nb_arg(parser_validate)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -472,7 +926,7 @@ def main():
 
     editor = NotebookEditor(args.notebook)
 
-    # Helper to get content
+    # Вспомогательная функция для получения контента
     def get_content(args_obj):
         if hasattr(args_obj, 'from_file') and args_obj.from_file:
             try:
@@ -486,10 +940,13 @@ def main():
         return ""
 
     if args.command == "list":
-        editor.list_cells(args.limit)
+        if args.json:
+            print(editor.list_cells_json(args.limit))
+        else:
+            editor.list_cells(args.limit)
     
     elif args.command == "read":
-        editor.read_cell(args.index, args.to_file, args.include_output)
+        editor.read_cell(args.index, args.to_file, args.include_output, args.numbered)
     
     elif args.command == "search":
         editor.search(args.query, args.regex)
@@ -510,11 +967,41 @@ def main():
         editor.show_diff(args.index, content)
         
     elif args.command == "create":
-        editor.save() # __init__ creates the structure, save writes it
+        editor.save()  # __init__ создаёт структуру, save записывает
         print(f"Created new notebook at {args.notebook}")
 
     elif args.command == "save-output":
         editor.save_output(args.index, args.output_index, args.to_file)
+
+    elif args.command == "clear-output":
+        if args.all:
+            editor.clear_outputs(None)
+        else:
+            editor.clear_outputs(args.cells)
+
+    elif args.command == "patch":
+        content = get_content(args)
+        # Парсим диапазон строк
+        try:
+            parts = args.lines.split('-')
+            start_line = int(parts[0])
+            end_line = int(parts[1]) if len(parts) > 1 else start_line
+        except ValueError:
+            print(f"Error: Invalid line range format '{args.lines}'. Use format: 5-10 or 5")
+            sys.exit(1)
+        editor.patch_lines(
+            args.index, start_line, end_line, content,
+            preserve_indent=not args.no_preserve_indent,
+            insert_mode=args.insert
+        )
+
+    elif args.command == "info":
+        editor.info()
+
+    elif args.command == "validate":
+        if not editor.validate():
+            sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

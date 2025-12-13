@@ -50,22 +50,22 @@ cd notebook-editor
 
 ```bash
 # List all cells in a notebook
-python notebook_editor.py list my_notebook.ipynb
+python3 notebook_editor.py list my_notebook.ipynb
 
-# Read a specific cell
-python notebook_editor.py read my_notebook.ipynb 5 --to-file cell_content.py
+# Read a specific cell with line numbers
+python3 notebook_editor.py read my_notebook.ipynb 5 --numbered
 
 # Update a cell from file
-python notebook_editor.py update my_notebook.ipynb 5 --from-file modified_content.py
+python3 notebook_editor.py update my_notebook.ipynb 5 --from-file modified_content.py
+
+# Edit specific lines only (more efficient!)
+python3 notebook_editor.py patch my_notebook.ipynb 5 --lines 10-15 --from-file patch.py
+
+# Clear all cell outputs
+python3 notebook_editor.py clear-output my_notebook.ipynb --all
 
 # Search for content
-python notebook_editor.py search my_notebook.ipynb "import pandas"
-
-# Add a new cell
-python notebook_editor.py add my_notebook.ipynb --type code --from-file new_code.py
-
-# Delete a cell
-python notebook_editor.py delete my_notebook.ipynb 5
+python3 notebook_editor.py search my_notebook.ipynb "import pandas"
 ```
 
 ---
@@ -74,31 +74,32 @@ python notebook_editor.py delete my_notebook.ipynb 5
 
 ### 1. **list** - View Notebook Structure
 
-Shows all cells with their indices, types, and content preview (first 2 and last 2 lines of code, plus output summary).
+Shows all cells with their indices, types, and content preview.
 
 ```bash
-python notebook_editor.py list <notebook.ipynb> [--limit N]
+python3 notebook_editor.py list <notebook.ipynb> [--limit N] [--json]
 ```
 
-**Example:**
+**Examples:**
 
 ```bash
-python notebook_editor.py list analysis.ipynb --limit 20
+# Standard output
+python3 notebook_editor.py list analysis.ipynb --limit 20
+
+# JSON output (for LLM parsing)
+python3 notebook_editor.py list analysis.ipynb --json
 ```
 
-**Output:**
+**JSON output:**
 
-```
-Total cells: 15
-[0] CODE:
-    | import pandas as pd
-[1] CODE:
-    | df = pd.read_csv('data.csv')
-    [OUTPUTS DETAILS]:
-    > [Data present]
-[2] MARKDOWN:
-    | ## Data Analysis
-...
+```json
+{
+  "notebook": "analysis.ipynb",
+  "total_cells": 15,
+  "cells": [
+    {"index": 0, "type": "code", "lines": 10, "has_output": true, ...}
+  ]
+}
 ```
 
 ---
@@ -108,236 +109,269 @@ Total cells: 15
 Read a specific cell's content to console or file.
 
 ```bash
-python notebook_editor.py read <notebook.ipynb> <cell_index> [--to-file <output_file>]
+python3 notebook_editor.py read <notebook.ipynb> <index> [--to-file <file>] [--numbered] [--include-output]
 ```
 
 **Examples:**
 
 ```bash
-# Print to console
-python notebook_editor.py read analysis.ipynb 5
+# Print with line numbers (useful for patch command)
+python3 notebook_editor.py read analysis.ipynb 5 --numbered
 
-# Print with execution outputs (text and image placeholders)
-python notebook_editor.py read analysis.ipynb 5 --include-output
+# Save to file
+python3 notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
 
-# Save to file (RECOMMENDED for code editing)
-python notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
+# Include execution outputs
+python3 notebook_editor.py read analysis.ipynb 5 --include-output
+```
+
+**Output with --numbered:**
+
+```
+--- Cell 5 (code) [17 lines] ---
+ 1: import pandas as pd
+ 2: import numpy as np
+ 3: 
+ 4: def calculate_mean(data):
+ 5:     """Calculate the mean."""
+ 6:     return sum(data) / len(data)
+...
 ```
 
 ---
 
 ### 3. **search** - Find Content
 
-Search for text or regex patterns across all cells (including code, markdown, and execution outputs).
+Search for text or regex patterns across all cells.
 
 ```bash
-python notebook_editor.py search <notebook.ipynb> "<query>" [--regex]
+python3 notebook_editor.py search <notebook.ipynb> "<query>" [--regex]
 ```
 
 **Examples:**
 
 ```bash
 # Simple text search
-python notebook_editor.py search analysis.ipynb "import pandas"
+python3 notebook_editor.py search analysis.ipynb "import pandas"
 
 # Regex search
-python notebook_editor.py search analysis.ipynb "def .*_handler" --regex
-```
-
-**Output:**
-
-```
-Match in Cell [3] SOURCE (code):
-  > import pandas as pd
-Match in Cell [7] SOURCE (code):
-  > df = pandas.DataFrame()
-Match in Cell [7] OUTPUT 0:
-  >> 0     0.36
-  >> 1     0.42
-Found matches in 2 cells: [3, 7]
+python3 notebook_editor.py search analysis.ipynb "def .*_handler" --regex
 ```
 
 ---
 
 ### 4. **update** - Modify Cell Content
 
-Replace the content of an existing cell. Automatically clears cell outputs.
+Replace the entire content of a cell.
 
 ```bash
-python notebook_editor.py update <notebook.ipynb> <cell_index> --from-file <file>
-python notebook_editor.py update <notebook.ipynb> <cell_index> --content "<text>"
+python3 notebook_editor.py update <notebook.ipynb> <index> --from-file <file>
+python3 notebook_editor.py update <notebook.ipynb> <index> --content "<text>"
 ```
 
 **Examples:**
 
 ```bash
 # Update from file (RECOMMENDED)
-python notebook_editor.py update analysis.ipynb 5 --from-file modified_code.py
-
-# Update with inline text (for simple changes)
-python notebook_editor.py update analysis.ipynb 5 --content "print('Hello World')"
+python3 notebook_editor.py update analysis.ipynb 5 --from-file modified_code.py
 
 # Keep outputs (don't clear)
-python notebook_editor.py update analysis.ipynb 5 --from-file code.py --no-clear-output
+python3 notebook_editor.py update analysis.ipynb 5 --from-file code.py --no-clear-output
 ```
 
 ---
 
-### 5. **add** - Insert New Cell
+### 5. **patch** - Edit Specific Lines
 
-Add a new code or markdown cell at a specific position.
+Replace only specified lines in a cell. **Much more efficient than update!**
 
 ```bash
-python notebook_editor.py add <notebook.ipynb> --type <code|markdown> --from-file <file>
-python notebook_editor.py add <notebook.ipynb> --type <code|markdown> --content "<text>"
+python3 notebook_editor.py patch <notebook.ipynb> <index> --lines <range> --from-file <file>
+python3 notebook_editor.py patch <notebook.ipynb> <index> --lines <range> --content "<text>"
+```
+
+**Examples:**
+
+```bash
+# Replace lines 5-10
+python3 notebook_editor.py patch analysis.ipynb 3 --lines 5-10 --from-file patch.py
+
+# Replace a single line
+python3 notebook_editor.py patch analysis.ipynb 3 --lines 7-7 --content "new_value = 42"
+
+# Insert after line 5 (add code without replacing)
+python3 notebook_editor.py patch analysis.ipynb 3 --lines 5 --insert --from-file insert.py
+
+# Disable automatic indent preservation
+python3 notebook_editor.py patch analysis.ipynb 3 --lines 5-10 --from-file patch.py --no-preserve-indent
+```
+
+**Key features:**
+- ✅ Automatically preserves relative indentation
+- ✅ Insert mode (`--insert`) — adds code without replacing
+- ✅ Auto-clears outputs after edit
+
+---
+
+### 6. **add** - Insert New Cell
+
+Add a new code or markdown cell.
+
+```bash
+python3 notebook_editor.py add <notebook.ipynb> --type <code|markdown> --from-file <file>
 ```
 
 **Examples:**
 
 ```bash
 # Add at the beginning
-python notebook_editor.py add analysis.ipynb --index 0 --type markdown --content "# Introduction"
+python3 notebook_editor.py add analysis.ipynb --index 0 --type markdown --content "# Introduction"
 
 # Add at the end (default)
-python notebook_editor.py add analysis.ipynb --type code --from-file new_analysis.py
-
-# Insert at specific position
-python notebook_editor.py add analysis.ipynb --index 5 --type code --content "print('checkpoint')"
+python3 notebook_editor.py add analysis.ipynb --type code --from-file new_analysis.py
 ```
 
 ---
 
-### 6. **delete** - Remove Cell
-
-Delete a cell by its index.
+### 7. **delete** - Remove Cell
 
 ```bash
-python notebook_editor.py delete <notebook.ipynb> <cell_index>
-```
-
-**Example:**
-
-```bash
-python notebook_editor.py delete analysis.ipynb 5
+python3 notebook_editor.py delete <notebook.ipynb> <index>
 ```
 
 ---
 
-### 7. **diff** - Preview Changes
+### 8. **diff** - Preview Changes
 
 Show what will change before updating a cell.
 
 ```bash
-python notebook_editor.py diff <notebook.ipynb> <cell_index> --from-file <file>
-python notebook_editor.py diff <notebook.ipynb> <cell_index> --content "<text>"
-```
-
-**Example:**
-
-```bash
-python notebook_editor.py diff analysis.ipynb 5 --from-file modified_code.py
-```
-
-**Output:**
-
-```diff
---- Cell 5 (Current)
-+++ New Content
-@@ -1,3 +1,4 @@
- import pandas as pd
--df = pd.read_csv('old_data.csv')
-+df = pd.read_csv('new_data.csv')
-+df = df.dropna()
+python3 notebook_editor.py diff <notebook.ipynb> <index> --from-file <file>
 ```
 
 ---
 
-### 8. **create** - New Notebook
-
-Create a new empty notebook with valid structure.
+### 9. **create** - New Notebook
 
 ```bash
-python notebook_editor.py create <notebook.ipynb>
-```
-
-**Example:**
-
-```bash
-python notebook_editor.py create new_analysis.ipynb
+python3 notebook_editor.py create <notebook.ipynb>
 ```
 
 ---
 
-### 9. **save-output** - Extract Images/Binary Data
+### 10. **clear-output** - Clear Cell Outputs
 
-Extracts binary data (like images) from a cell's output to a file.
+Remove execution outputs from cells.
 
 ```bash
-python notebook_editor.py save-output <notebook.ipynb> <cell_index> --to-file <output_file> [--output-index N]
+python3 notebook_editor.py clear-output <notebook.ipynb> --all
+python3 notebook_editor.py clear-output <notebook.ipynb> --cells 0 2 5
 ```
 
-**Example:**
+**Examples:**
 
 ```bash
-# Save the plot from cell 5 to an image file
-python notebook_editor.py save-output analysis.ipynb 5 --to-file plot.png
+# Clear all code cells
+python3 notebook_editor.py clear-output analysis.ipynb --all
+
+# Clear specific cells
+python3 notebook_editor.py clear-output analysis.ipynb --cells 0 2 5
+```
+
+---
+
+### 11. **info** - Notebook Metadata
+
+Show notebook information and statistics.
+
+```bash
+python3 notebook_editor.py info <notebook.ipynb>
 ```
 
 **Output:**
+
 ```
-Saved image/png data from Cell 5, Output 0 to 'plot.png'.
+Notebook: analysis.ipynb
+Format: nbformat 4.5
+Kernel: Python 3
+Cells: 25 total
+  - Code: 18
+  - Markdown: 7
+  - With outputs: 12
+Total source lines: 450
 ```
+
+---
+
+### 12. **validate** - Check Structure
+
+Validate notebook JSON structure.
+
+```bash
+python3 notebook_editor.py validate <notebook.ipynb>
+```
+
+Returns exit code 1 on errors — useful for CI/CD.
+
+---
+
+### 13. **save-output** - Extract Images
+
+```bash
+python3 notebook_editor.py save-output <notebook.ipynb> <index> --to-file <path>
+```
+
+---
+
+## 📋 Command Summary Table
+
+| Command | Description | Key Flags |
+|---------|-------------|-----------|
+| `list` | View structure | `--limit`, `--json` |
+| `read` | Read cell | `--numbered`, `--to-file`, `--include-output` |
+| `search` | Find text | `--regex` |
+| `update` | Replace entire cell | `--from-file`, `--no-clear-output` |
+| `patch` | Edit specific lines | `--lines`, `--insert`, `--no-preserve-indent` |
+| `add` | Add cell | `--index`, `--type`, `--from-file` |
+| `delete` | Remove cell | - |
+| `diff` | Preview changes | `--from-file` |
+| `clear-output` | Clear outputs | `--all`, `--cells` |
+| `info` | Show metadata | - |
+| `validate` | Check structure | - |
+| `create` | New notebook | - |
+| `save-output` | Extract images | `--output-index`, `--to-file` |
 
 ---
 
 ## 🤖 Best Practice Workflow for AI Agents
 
-> **Note for Users:** There is a dedicated guide for AI agents located at [`README_AGENT.md`](README_AGENT.md). Please provide this file to your AI agent to help it understand how to use this tool effectively.
+> **Note for Users:** There is a dedicated guide for AI agents located at [`README_AGENT.md`](README_AGENT.md).
 
-When modifying notebook code, follow this **file exchange pattern**:
+### Recommended Workflow
 
 ```bash
-# 1. Explore: Understand the notebook structure
-python notebook_editor.py list notebook.ipynb
+# 1. Explore: Understand the structure
+python3 notebook_editor.py list notebook.ipynb
 
-# 2. Extract: Export cell content to a temporary file
-python notebook_editor.py read notebook.ipynb 5 --to-file temp_cell.py
+# 2. Read with line numbers
+python3 notebook_editor.py read notebook.ipynb 5 --numbered
 
-# 3. Edit: Read temp_file.py, make changes, save modifications
-# (AI agent or human edits temp_cell.py here)
+# 3. Precise editing (more efficient than update!)
+python3 notebook_editor.py patch notebook.ipynb 5 --lines 10-15 --from-file patch.py
 
-# 4. Preview: (Optional) Check what will change
-python notebook_editor.py diff notebook.ipynb 5 --from-file temp_cell.py
-
-# 5. Apply: Update the cell from the modified file
-python notebook_editor.py update notebook.ipynb 5 --from-file temp_cell.py
+# OR full cell replacement
+python3 notebook_editor.py read notebook.ipynb 5 --to-file temp.py
+# (edit temp.py)
+python3 notebook_editor.py update notebook.ipynb 5 --from-file temp.py
 ```
 
-### Why This Pattern?
+### Advantages of patch over update
 
-- **Reliable**: File I/O is more predictable than string manipulation
-- **Safe**: Preview changes before applying them
-- **Clear**: Each step has a single, well-defined purpose
-- **Debuggable**: Intermediate files can be inspected
-- **LLM-Friendly**: Matches how AI agents naturally work with code
-
----
-
-## 🛠️ Use Cases
-
-### For AI Agents
-
-- Automated notebook refactoring
-- Batch code updates across multiple notebooks
-- Programmatic notebook generation
-- CI/CD pipeline integration
-
-### For Developers
-
-- Quick notebook editing without Jupyter
-- Scripted notebook modifications
-- Version control-friendly notebook updates
-- Lightweight notebook manipulation in restricted environments
+| update | patch |
+|--------|-------|
+| Must copy entire cell | Edit only needed lines |
+| Easy to break indentation | Indentation preserved automatically |
+| Uses more tokens | Saves tokens |
 
 ---
 
@@ -370,70 +404,41 @@ The tool works with standard Jupyter Notebook format (`.ipynb`), which is JSON-b
 
 ## 📝 Examples
 
-### Example 1: Batch Update Import Statements
+### Example 1: Quick Fix for a Function
 
 ```bash
-# Find all cells with old import
-python notebook_editor.py search notebook.ipynb "from old_module import"
+# View cell with line numbers
+python3 notebook_editor.py read notebook.ipynb 3 --numbered
 
-# For each match, update the cell
-python notebook_editor.py read notebook.ipynb 3 --to-file temp.py
-# Edit temp.py to replace import
-python notebook_editor.py update notebook.ipynb 3 --from-file temp.py
+# Replace only lines 5-8
+python3 notebook_editor.py patch notebook.ipynb 3 --lines 5-8 --content "    return x * 2"
 ```
 
-### Example 2: Add Documentation
+### Example 2: Add Validation to a Function
 
 ```bash
-# Add markdown cell at the beginning
-python notebook_editor.py add notebook.ipynb --index 0 --type markdown --content "# Analysis Report
+# Insert new code after line 4
+echo "    if x is None:
+        raise ValueError('x cannot be None')" > insert.py
 
-This notebook performs data analysis on customer data.
-
-## Author: AI Agent
-## Date: 2025-11-27"
+python3 notebook_editor.py patch notebook.ipynb 3 --lines 4 --insert --from-file insert.py
 ```
 
-### Example 3: Clean Up Debug Code
+### Example 3: Pre-commit Cleanup
 
 ```bash
-# Search for debug prints
-python notebook_editor.py search notebook.ipynb "print.*debug" --regex
+# Clear all outputs
+python3 notebook_editor.py clear-output notebook.ipynb --all
 
-# Delete cells with debug code
-python notebook_editor.py delete notebook.ipynb 7
-python notebook_editor.py delete notebook.ipynb 12
+# Validate structure
+python3 notebook_editor.py validate notebook.ipynb
 ```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! This tool is designed to be simple and focused. When contributing:
-
-1. Maintain zero-dependency principle
-2. Keep the CLI interface clean and predictable
-3. Ensure compatibility with AI agent workflows
-4. Add tests for new features
 
 ---
 
 ## 📄 License
 
 MIT License - feel free to use in your projects!
-
----
-
-## 🙏 Acknowledgments
-
-Built for the AI agent community to enable seamless notebook manipulation in automated workflows.
-
----
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/notebook-editor/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/notebook-editor/discussions)
 
 ---
 
