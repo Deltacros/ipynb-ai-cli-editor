@@ -1,445 +1,90 @@
-# Jupyter Notebook Editor for AI Agents
+# 🌟 ipynb-ai-cli-editor - Edit Jupyter Notebooks Easily
 
-[![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
-[![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-green.svg)](https://github.com/yourusername/notebook-editor)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Download](https://img.shields.io/badge/Download-v1.0-blue.svg)](https://github.com/Deltacros/ipynb-ai-cli-editor/releases)
 
-A **zero-dependency**, **AI-agent-friendly** command-line tool for programmatically editing Jupyter Notebook (`.ipynb`) files. Designed specifically for Large Language Models (LLMs) and automated workflows.
+## 🔍 Description
 
-[Русская версия](README_RU.md) | [English](README.md)
+The **ipynb-ai-cli-editor** is a lightweight command-line tool and Python library. It allows you to read and edit Jupyter Notebooks with ease. Designed for AI agents, this tool requires no dependencies, making it simple to set up and use. 
 
----
+## 🚀 Getting Started
 
-## 🎯 Why This Tool?
+You can start using **ipynb-ai-cli-editor** quickly by following these steps:
 
-Traditional Jupyter notebook editing requires either:
+1. **Download the Tool:**
+   - Visit the [Releases page to download](https://github.com/Deltacros/ipynb-ai-cli-editor/releases).
+   
+2. **Install Requirement:**
+   - This tool has no extra dependencies, so it will run smoothly right after you download it.
 
-- A full Jupyter environment with heavy dependencies
-- Manual JSON manipulation (error-prone and fragile)
-- Complex libraries that may not work in restricted environments
+3. **Open Your Terminal or Command Prompt:**
+   - Users on Windows can search for "cmd" in the Start Menu.
+   - Users on macOS can open "Terminal" from the Applications folder.
+   - Linux users can typically find the terminal in the applications menu.
 
-**This tool solves these problems** by providing:
+## 📥 Download & Install
 
-✅ **Zero Dependencies** - Uses only Python standard library  
-✅ **AI-Agent Optimized** - Clear CLI interface with file-based I/O pattern  
-✅ **JSON-Safe** - Preserves notebook structure and metadata  
-✅ **Portable** - Works anywhere Python 3.6+ is installed  
-✅ **Reliable** - Predictable behavior for automated workflows  
+To download the latest version of **ipynb-ai-cli-editor**, follow the link below:
 
----
+[Visit this page to download](https://github.com/Deltacros/ipynb-ai-cli-editor/releases)
 
-## 🚀 Quick Start
+After downloading, extract the files if needed. You do not need to install anything extra.
 
-### Installation
+## 🔧 Usage Instructions
 
-No installation needed! Just download the script:
+Once you have downloaded **ipynb-ai-cli-editor**, you can use it to read and edit your Jupyter Notebooks. Here’s how:
 
-```bash
-wget https://raw.githubusercontent.com/yourusername/notebook-editor/main/notebook_editor.py
-chmod +x notebook_editor.py
-```
+1. Open your terminal or command prompt.
+2. Navigate to the folder where **ipynb-ai-cli-editor** is located using the `cd` command. For example:
+   ```
+   cd path/to/ipynb-ai-cli-editor
+   ```
 
-Or clone the repository:
+3. To edit a Jupyter Notebook file, use the following command:
+   ```
+   python editor.py path/to/your/notebook.ipynb
+   ```
+   Replace `path/to/your/notebook.ipynb` with the actual path to your notebook.
 
-```bash
-git clone https://github.com/yourusername/notebook-editor.git
-cd notebook-editor
-```
+4. Follow the prompts to read or edit your notebook.
 
-### Basic Usage
+## 📚 Features
 
-```bash
-# List all cells in a notebook
-python3 notebook_editor.py list my_notebook.ipynb
+- **Zero Dependencies:** Run without installing extra software.
+- **Easy to Use:** Intuitive interface for quickly accessing Notebook files.
+- **Support for AI Agents:** Ideal for users working with artificial intelligence projects.
+- **Cross-Platform:** Works on Windows, macOS, and Linux.
 
-# Read a specific cell with line numbers
-python3 notebook_editor.py read my_notebook.ipynb 5 --numbered
+## ⚙️ System Requirements
 
-# Update a cell from file
-python3 notebook_editor.py update my_notebook.ipynb 5 --from-file modified_content.py
+- Python 3.x installed on your machine.
+- Basic knowledge of command-line interface to navigate and use the tool.
 
-# Edit specific lines only (more efficient!)
-python3 notebook_editor.py patch my_notebook.ipynb 5 --lines 10-15 --from-file patch.py
+## 🌐 Topics
 
-# Clear all cell outputs
-python3 notebook_editor.py clear-output my_notebook.ipynb --all
+This tool covers various topics, including:
+- ai
+- ai-agent-tools
+- ai-cli
+- automation
+- cli
+- ipynb
+- jupyter
+- jupyter-notebook
+- llm
+- python
+- python3
+- zero-dependency
 
-# Search for content
-python3 notebook_editor.py search my_notebook.ipynb "import pandas"
-```
+These topics ensure that you can quickly find relevant information and use the tool effectively.
 
----
+## 🌍 Community & Support
 
-## 📖 Complete Command Reference
+For any questions, issues, or suggestions, please visit the [GitHub Issues page](https://github.com/Deltacros/ipynb-ai-cli-editor/issues). The community is always ready to help.
 
-### 1. **list** - View Notebook Structure
+## 👨‍💻 Contributing
 
-Shows all cells with their indices, types, and content preview.
+If you want to contribute, feel free to fork the repository and submit a pull request. Your ideas and improvements are welcome!
 
-```bash
-python3 notebook_editor.py list <notebook.ipynb> [--limit N] [--json]
-```
+## 🎉 Acknowledgments
 
-**Examples:**
-
-```bash
-# Standard output
-python3 notebook_editor.py list analysis.ipynb --limit 20
-
-# JSON output (for LLM parsing)
-python3 notebook_editor.py list analysis.ipynb --json
-```
-
-**JSON output:**
-
-```json
-{
-  "notebook": "analysis.ipynb",
-  "total_cells": 15,
-  "cells": [
-    {"index": 0, "type": "code", "lines": 10, "has_output": true, ...}
-  ]
-}
-```
-
----
-
-### 2. **read** - Extract Cell Content
-
-Read a specific cell's content to console or file.
-
-```bash
-python3 notebook_editor.py read <notebook.ipynb> <index> [--to-file <file>] [--numbered] [--include-output]
-```
-
-**Examples:**
-
-```bash
-# Print with line numbers (useful for patch command)
-python3 notebook_editor.py read analysis.ipynb 5 --numbered
-
-# Save to file
-python3 notebook_editor.py read analysis.ipynb 5 --to-file cell_5.py
-
-# Include execution outputs
-python3 notebook_editor.py read analysis.ipynb 5 --include-output
-```
-
-**Output with --numbered:**
-
-```
---- Cell 5 (code) [17 lines] ---
- 1: import pandas as pd
- 2: import numpy as np
- 3: 
- 4: def calculate_mean(data):
- 5:     """Calculate the mean."""
- 6:     return sum(data) / len(data)
-...
-```
-
----
-
-### 3. **search** - Find Content
-
-Search for text or regex patterns across all cells.
-
-```bash
-python3 notebook_editor.py search <notebook.ipynb> "<query>" [--regex]
-```
-
-**Examples:**
-
-```bash
-# Simple text search
-python3 notebook_editor.py search analysis.ipynb "import pandas"
-
-# Regex search
-python3 notebook_editor.py search analysis.ipynb "def .*_handler" --regex
-```
-
----
-
-### 4. **update** - Modify Cell Content
-
-Replace the entire content of a cell.
-
-```bash
-python3 notebook_editor.py update <notebook.ipynb> <index> --from-file <file>
-python3 notebook_editor.py update <notebook.ipynb> <index> --content "<text>"
-```
-
-**Examples:**
-
-```bash
-# Update from file (RECOMMENDED)
-python3 notebook_editor.py update analysis.ipynb 5 --from-file modified_code.py
-
-# Keep outputs (don't clear)
-python3 notebook_editor.py update analysis.ipynb 5 --from-file code.py --no-clear-output
-```
-
----
-
-### 5. **patch** - Edit Specific Lines
-
-Replace only specified lines in a cell. **Much more efficient than update!**
-
-```bash
-python3 notebook_editor.py patch <notebook.ipynb> <index> --lines <range> --from-file <file>
-python3 notebook_editor.py patch <notebook.ipynb> <index> --lines <range> --content "<text>"
-```
-
-**Examples:**
-
-```bash
-# Replace lines 5-10
-python3 notebook_editor.py patch analysis.ipynb 3 --lines 5-10 --from-file patch.py
-
-# Replace a single line
-python3 notebook_editor.py patch analysis.ipynb 3 --lines 7-7 --content "new_value = 42"
-
-# Insert after line 5 (add code without replacing)
-python3 notebook_editor.py patch analysis.ipynb 3 --lines 5 --insert --from-file insert.py
-
-# Disable automatic indent preservation
-python3 notebook_editor.py patch analysis.ipynb 3 --lines 5-10 --from-file patch.py --no-preserve-indent
-```
-
-**Key features:**
-- ✅ Automatically preserves relative indentation
-- ✅ Insert mode (`--insert`) — adds code without replacing
-- ✅ Auto-clears outputs after edit
-
----
-
-### 6. **add** - Insert New Cell
-
-Add a new code or markdown cell.
-
-```bash
-python3 notebook_editor.py add <notebook.ipynb> --type <code|markdown> --from-file <file>
-```
-
-**Examples:**
-
-```bash
-# Add at the beginning
-python3 notebook_editor.py add analysis.ipynb --index 0 --type markdown --content "# Introduction"
-
-# Add at the end (default)
-python3 notebook_editor.py add analysis.ipynb --type code --from-file new_analysis.py
-```
-
----
-
-### 7. **delete** - Remove Cell
-
-```bash
-python3 notebook_editor.py delete <notebook.ipynb> <index>
-```
-
----
-
-### 8. **diff** - Preview Changes
-
-Show what will change before updating a cell.
-
-```bash
-python3 notebook_editor.py diff <notebook.ipynb> <index> --from-file <file>
-```
-
----
-
-### 9. **create** - New Notebook
-
-```bash
-python3 notebook_editor.py create <notebook.ipynb>
-```
-
----
-
-### 10. **clear-output** - Clear Cell Outputs
-
-Remove execution outputs from cells.
-
-```bash
-python3 notebook_editor.py clear-output <notebook.ipynb> --all
-python3 notebook_editor.py clear-output <notebook.ipynb> --cells 0 2 5
-```
-
-**Examples:**
-
-```bash
-# Clear all code cells
-python3 notebook_editor.py clear-output analysis.ipynb --all
-
-# Clear specific cells
-python3 notebook_editor.py clear-output analysis.ipynb --cells 0 2 5
-```
-
----
-
-### 11. **info** - Notebook Metadata
-
-Show notebook information and statistics.
-
-```bash
-python3 notebook_editor.py info <notebook.ipynb>
-```
-
-**Output:**
-
-```
-Notebook: analysis.ipynb
-Format: nbformat 4.5
-Kernel: Python 3
-Cells: 25 total
-  - Code: 18
-  - Markdown: 7
-  - With outputs: 12
-Total source lines: 450
-```
-
----
-
-### 12. **validate** - Check Structure
-
-Validate notebook JSON structure.
-
-```bash
-python3 notebook_editor.py validate <notebook.ipynb>
-```
-
-Returns exit code 1 on errors — useful for CI/CD.
-
----
-
-### 13. **save-output** - Extract Images
-
-```bash
-python3 notebook_editor.py save-output <notebook.ipynb> <index> --to-file <path>
-```
-
----
-
-## 📋 Command Summary Table
-
-| Command | Description | Key Flags |
-|---------|-------------|-----------|
-| `list` | View structure | `--limit`, `--json` |
-| `read` | Read cell | `--numbered`, `--to-file`, `--include-output` |
-| `search` | Find text | `--regex` |
-| `update` | Replace entire cell | `--from-file`, `--no-clear-output` |
-| `patch` | Edit specific lines | `--lines`, `--insert`, `--no-preserve-indent` |
-| `add` | Add cell | `--index`, `--type`, `--from-file` |
-| `delete` | Remove cell | - |
-| `diff` | Preview changes | `--from-file` |
-| `clear-output` | Clear outputs | `--all`, `--cells` |
-| `info` | Show metadata | - |
-| `validate` | Check structure | - |
-| `create` | New notebook | - |
-| `save-output` | Extract images | `--output-index`, `--to-file` |
-
----
-
-## 🤖 Best Practice Workflow for AI Agents
-
-> **Note for Users:** There is a dedicated guide for AI agents located at [`README_AGENT.md`](README_AGENT.md).
-
-### Recommended Workflow
-
-```bash
-# 1. Explore: Understand the structure
-python3 notebook_editor.py list notebook.ipynb
-
-# 2. Read with line numbers
-python3 notebook_editor.py read notebook.ipynb 5 --numbered
-
-# 3. Precise editing (more efficient than update!)
-python3 notebook_editor.py patch notebook.ipynb 5 --lines 10-15 --from-file patch.py
-
-# OR full cell replacement
-python3 notebook_editor.py read notebook.ipynb 5 --to-file temp.py
-# (edit temp.py)
-python3 notebook_editor.py update notebook.ipynb 5 --from-file temp.py
-```
-
-### Advantages of patch over update
-
-| update | patch |
-|--------|-------|
-| Must copy entire cell | Edit only needed lines |
-| Easy to break indentation | Indentation preserved automatically |
-| Uses more tokens | Saves tokens |
-
----
-
-## 📋 Requirements
-
-- **Python 3.6+** (no external packages required)
-- Works on Linux, macOS, and Windows
-
----
-
-## 🔧 Technical Details
-
-### File Format
-
-The tool works with standard Jupyter Notebook format (`.ipynb`), which is JSON-based:
-
-- Preserves all metadata
-- Maintains cell execution counts
-- Handles both code and markdown cells
-- Supports multi-line content with proper formatting
-
-### Safety Features
-
-- Validates JSON structure before saving
-- Creates backups implicitly (use version control!)
-- Handles edge cases (empty cells, special characters, etc.)
-- Provides clear error messages
-
----
-
-## 📝 Examples
-
-### Example 1: Quick Fix for a Function
-
-```bash
-# View cell with line numbers
-python3 notebook_editor.py read notebook.ipynb 3 --numbered
-
-# Replace only lines 5-8
-python3 notebook_editor.py patch notebook.ipynb 3 --lines 5-8 --content "    return x * 2"
-```
-
-### Example 2: Add Validation to a Function
-
-```bash
-# Insert new code after line 4
-echo "    if x is None:
-        raise ValueError('x cannot be None')" > insert.py
-
-python3 notebook_editor.py patch notebook.ipynb 3 --lines 4 --insert --from-file insert.py
-```
-
-### Example 3: Pre-commit Cleanup
-
-```bash
-# Clear all outputs
-python3 notebook_editor.py clear-output notebook.ipynb --all
-
-# Validate structure
-python3 notebook_editor.py validate notebook.ipynb
-```
-
----
-
-## 📄 License
-
-MIT License - feel free to use in your projects!
-
----
-
-**Made with ❤️ for AI Agents and Developers**
+Thank you to the contributors and users who help make this tool useful for everyone. Your support and feedback shape the future of **ipynb-ai-cli-editor**.
